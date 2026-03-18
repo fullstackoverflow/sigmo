@@ -3,7 +3,7 @@ package httpapi
 import (
 	"net/http"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 )
 
 type ErrorResponse struct {
@@ -12,7 +12,7 @@ type ErrorResponse struct {
 	RequestID string `json:"request_id"`
 }
 
-func Error(c echo.Context, status int, errorCode, message string) error {
+func Error(c *echo.Context, status int, errorCode, message string) error {
 	return c.JSON(status, ErrorResponse{
 		ErrorCode: errorCode,
 		Message:   message,
@@ -20,35 +20,35 @@ func Error(c echo.Context, status int, errorCode, message string) error {
 	})
 }
 
-func BadRequest(c echo.Context, errorCode string, err error) error {
+func BadRequest(c *echo.Context, errorCode string, err error) error {
 	return Error(c, http.StatusBadRequest, errorCode, err.Error())
 }
 
-func Unauthorized(c echo.Context, errorCode string, err error) error {
+func Unauthorized(c *echo.Context, errorCode string, err error) error {
 	return Error(c, http.StatusUnauthorized, errorCode, err.Error())
 }
 
-func NotFound(c echo.Context, errorCode string, err error) error {
+func NotFound(c *echo.Context, errorCode string, err error) error {
 	return Error(c, http.StatusNotFound, errorCode, err.Error())
 }
 
-func RequestTimeout(c echo.Context, errorCode string, err error) error {
+func RequestTimeout(c *echo.Context, errorCode string, err error) error {
 	return Error(c, http.StatusRequestTimeout, errorCode, err.Error())
 }
 
-func TooManyRequests(c echo.Context, errorCode string, err error) error {
+func TooManyRequests(c *echo.Context, errorCode string, err error) error {
 	return Error(c, http.StatusTooManyRequests, errorCode, err.Error())
 }
 
-func UnprocessableEntity(c echo.Context, errorCode string, err error) error {
+func UnprocessableEntity(c *echo.Context, errorCode string, err error) error {
 	return Error(c, http.StatusUnprocessableEntity, errorCode, err.Error())
 }
 
-func Internal(c echo.Context, errorCode string) error {
+func Internal(c *echo.Context, errorCode string) error {
 	return Error(c, http.StatusInternalServerError, errorCode, "internal server error")
 }
 
-func BindAndValidate[T any](c echo.Context, dst *T, errorCode string) error {
+func BindAndValidate[T any](c *echo.Context, dst *T, errorCode string) error {
 	if err := c.Bind(dst); err != nil {
 		return BadRequest(c, errorCode, err)
 	}
@@ -58,7 +58,7 @@ func BindAndValidate[T any](c echo.Context, dst *T, errorCode string) error {
 	return nil
 }
 
-func requestID(c echo.Context) string {
+func requestID(c *echo.Context) string {
 	requestID := c.Response().Header().Get(echo.HeaderXRequestID)
 	if requestID != "" {
 		return requestID

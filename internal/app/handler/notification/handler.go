@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	sgp22 "github.com/damonto/euicc-go/v2"
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 
 	"github.com/damonto/sigmo/internal/app/httpapi"
 	"github.com/damonto/sigmo/internal/pkg/config"
@@ -44,7 +44,7 @@ func New(cfg *config.Config, manager *mmodem.Manager) *Handler {
 	}
 }
 
-func (h *Handler) List(c echo.Context) error {
+func (h *Handler) List(c *echo.Context) error {
 	modem, err := h.findModem(c.Param("id"))
 	if err != nil {
 		return h.modemLookupError(c, err, errorCodeListNotificationsFailed)
@@ -59,7 +59,7 @@ func (h *Handler) List(c echo.Context) error {
 	return c.JSON(http.StatusOK, response)
 }
 
-func (h *Handler) Resend(c echo.Context) error {
+func (h *Handler) Resend(c *echo.Context) error {
 	modem, err := h.findModem(c.Param("id"))
 	if err != nil {
 		return h.modemLookupError(c, err, errorCodeResendNotificationFailed)
@@ -80,7 +80,7 @@ func (h *Handler) Resend(c echo.Context) error {
 	return c.NoContent(http.StatusNoContent)
 }
 
-func (h *Handler) Delete(c echo.Context) error {
+func (h *Handler) Delete(c *echo.Context) error {
 	modem, err := h.findModem(c.Param("id"))
 	if err != nil {
 		return h.modemLookupError(c, err, errorCodeDeleteNotificationFailed)
@@ -101,7 +101,7 @@ func (h *Handler) Delete(c echo.Context) error {
 	return c.NoContent(http.StatusNoContent)
 }
 
-func sequenceFromParam(c echo.Context) (sgp22.SequenceNumber, error) {
+func sequenceFromParam(c *echo.Context) (sgp22.SequenceNumber, error) {
 	raw := strings.TrimSpace(c.Param("sequence"))
 	if raw == "" {
 		return 0, errSequenceRequired
@@ -113,7 +113,7 @@ func sequenceFromParam(c echo.Context) (sgp22.SequenceNumber, error) {
 	return sgp22.SequenceNumber(value), nil
 }
 
-func (h *Handler) modemLookupError(c echo.Context, err error, internalErrorCode string) error {
+func (h *Handler) modemLookupError(c *echo.Context, err error, internalErrorCode string) error {
 	if errors.Is(err, errModemNotFound) {
 		return httpapi.NotFound(c, errorCodeModemNotFound, err)
 	}

@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 
 	"github.com/damonto/sigmo/internal/app/httpapi"
 	mmodem "github.com/damonto/sigmo/internal/pkg/modem"
@@ -41,7 +41,7 @@ func New(manager *mmodem.Manager) *Handler {
 	}
 }
 
-func (h *Handler) Execute(c echo.Context) error {
+func (h *Handler) Execute(c *echo.Context) error {
 	modem, err := h.findModem(c.Param("id"))
 	if err != nil {
 		return h.modemLookupError(c, err, errorCodeExecuteUSDDFailed)
@@ -76,7 +76,7 @@ func (h *Handler) Execute(c echo.Context) error {
 	return c.JSON(http.StatusOK, response)
 }
 
-func (h *Handler) modemLookupError(c echo.Context, err error, internalErrorCode string) error {
+func (h *Handler) modemLookupError(c *echo.Context, err error, internalErrorCode string) error {
 	if errors.Is(err, errModemNotFound) {
 		return httpapi.NotFound(c, errorCodeModemNotFound, err)
 	}

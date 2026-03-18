@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 
 	"github.com/damonto/sigmo/internal/app/httpapi"
 	"github.com/damonto/sigmo/internal/pkg/config"
@@ -56,7 +56,7 @@ func New(cfg *config.Config, manager *mmodem.Manager) *Handler {
 	}
 }
 
-func (h *Handler) List(c echo.Context) error {
+func (h *Handler) List(c *echo.Context) error {
 	response, err := h.service.List()
 	if err != nil {
 		return httpapi.Internal(c, errorCodeListModemsFailed)
@@ -64,7 +64,7 @@ func (h *Handler) List(c echo.Context) error {
 	return c.JSON(http.StatusOK, response)
 }
 
-func (h *Handler) Get(c echo.Context) error {
+func (h *Handler) Get(c *echo.Context) error {
 	modem, err := h.findModem(c.Param("id"))
 	if err != nil {
 		return h.modemLookupError(c, err, errorCodeGetModemFailed)
@@ -76,7 +76,7 @@ func (h *Handler) Get(c echo.Context) error {
 	return c.JSON(http.StatusOK, response)
 }
 
-func (h *Handler) SwitchSimSlot(c echo.Context) error {
+func (h *Handler) SwitchSimSlot(c *echo.Context) error {
 	modem, err := h.findModem(c.Param("id"))
 	if err != nil {
 		return h.modemLookupError(c, err, errorCodeSwitchSimSlotFailed)
@@ -113,7 +113,7 @@ func (h *Handler) SwitchSimSlot(c echo.Context) error {
 	return c.NoContent(http.StatusNoContent)
 }
 
-func (h *Handler) UpdateMSISDN(c echo.Context) error {
+func (h *Handler) UpdateMSISDN(c *echo.Context) error {
 	modem, err := h.findModem(c.Param("id"))
 	if err != nil {
 		return h.modemLookupError(c, err, errorCodeUpdateMSISDNFailed)
@@ -138,7 +138,7 @@ func (h *Handler) UpdateMSISDN(c echo.Context) error {
 	return c.NoContent(http.StatusNoContent)
 }
 
-func (h *Handler) UpdateSettings(c echo.Context) error {
+func (h *Handler) UpdateSettings(c *echo.Context) error {
 	modem, err := h.findModem(c.Param("id"))
 	if err != nil {
 		return h.modemLookupError(c, err, errorCodeUpdateSettingsFailed)
@@ -156,7 +156,7 @@ func (h *Handler) UpdateSettings(c echo.Context) error {
 	return c.NoContent(http.StatusNoContent)
 }
 
-func (h *Handler) GetSettings(c echo.Context) error {
+func (h *Handler) GetSettings(c *echo.Context) error {
 	modem, err := h.findModem(c.Param("id"))
 	if err != nil {
 		return h.modemLookupError(c, err, errorCodeGetSettingsFailed)
@@ -165,7 +165,7 @@ func (h *Handler) GetSettings(c echo.Context) error {
 	return c.JSON(http.StatusOK, response)
 }
 
-func (h *Handler) modemLookupError(c echo.Context, err error, internalErrorCode string) error {
+func (h *Handler) modemLookupError(c *echo.Context, err error, internalErrorCode string) error {
 	if errors.Is(err, errModemNotFound) {
 		return httpapi.NotFound(c, errorCodeModemNotFound, err)
 	}

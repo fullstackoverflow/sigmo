@@ -11,8 +11,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/labstack/echo/v4"
-	"github.com/labstack/echo/v4/middleware"
+	"github.com/labstack/echo/v5"
+	"github.com/labstack/echo/v5/middleware"
 
 	"github.com/damonto/sigmo/internal/app/forwarder"
 	"github.com/damonto/sigmo/internal/app/router"
@@ -49,7 +49,7 @@ func main() {
 	}
 
 	server := echo.New()
-	server.HideBanner = true
+	server.Logger = slog.Default()
 	server.Validator = validator.New()
 	if !cfg.IsProduction() {
 		server.Use(middleware.RequestLogger())
@@ -81,18 +81,13 @@ func main() {
 		}()
 	}
 
-	go func() {
-		if err := server.Start(cfg.App.ListenAddress); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			slog.Error("http server stopped", "error", err)
-			stop()
-		}
-	}()
-
-	<-ctx.Done()
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	if err := server.Shutdown(shutdownCtx); err != nil {
-		slog.Error("http server shutdown failed", "error", err)
+	startConfig := echo.StartConfig{
+		Address:         cfg.App.ListenAddress,
+		HideBanner:      true,
+		GracefulTimeout: 5 * time.Second,
+	}
+	if err := startConfig.Start(ctx, server); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		slog.Error("http server stopped", "error", err)
 		os.Exit(1)
 	}
 }

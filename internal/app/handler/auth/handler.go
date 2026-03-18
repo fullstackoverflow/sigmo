@@ -4,7 +4,7 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 
 	"github.com/damonto/sigmo/internal/app/auth"
 	"github.com/damonto/sigmo/internal/app/httpapi"
@@ -29,11 +29,11 @@ func New(cfg *config.Config, store *auth.Store) *Handler {
 	}
 }
 
-func (h *Handler) OTPRequirement(c echo.Context) error {
+func (h *Handler) OTPRequirement(c *echo.Context) error {
 	return c.JSON(http.StatusOK, OTPRequirementResponse{OTPRequired: h.service.OTPRequired()})
 }
 
-func (h *Handler) SendOTP(c echo.Context) error {
+func (h *Handler) SendOTP(c *echo.Context) error {
 	if err := h.service.SendOTP(); err != nil {
 		if errors.Is(err, auth.ErrOTPCooldown) {
 			return httpapi.TooManyRequests(c, errorCodeOTPCooldown, err)
@@ -43,7 +43,7 @@ func (h *Handler) SendOTP(c echo.Context) error {
 	return c.NoContent(http.StatusCreated)
 }
 
-func (h *Handler) VerifyOTP(c echo.Context) error {
+func (h *Handler) VerifyOTP(c *echo.Context) error {
 	var req VerifyOTPRequest
 	if err := httpapi.BindAndValidate(c, &req, errorCodeInvalidVerifyOTPRequest); err != nil {
 		return err

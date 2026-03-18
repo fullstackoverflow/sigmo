@@ -1,11 +1,10 @@
 package router
 
 import (
-	"net/http"
 	"strings"
 
-	"github.com/labstack/echo/v4"
-	"github.com/labstack/echo/v4/middleware"
+	"github.com/labstack/echo/v5"
+	"github.com/labstack/echo/v5/middleware"
 
 	"github.com/damonto/sigmo/internal/app/auth"
 	hauth "github.com/damonto/sigmo/internal/app/handler/auth"
@@ -24,10 +23,10 @@ import (
 
 func Register(e *echo.Echo, cfg *config.Config, manager *modem.Manager) {
 	e.Use(middleware.StaticWithConfig(middleware.StaticConfig{
-		Filesystem: http.FS(web.Root()),
+		Filesystem: web.Root(),
 		Index:      "index.html",
 		HTML5:      true,
-		Skipper: func(c echo.Context) bool {
+		Skipper: func(c *echo.Context) bool {
 			path := c.Request().URL.Path
 			return strings.HasPrefix(path, "/api/")
 		},

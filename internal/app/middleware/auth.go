@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 
 	"github.com/damonto/sigmo/internal/app/auth"
 	"github.com/damonto/sigmo/internal/app/httpapi"
@@ -14,7 +14,7 @@ const bearerPrefix = "Bearer "
 
 func Auth(store *auth.Store) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
+		return func(c *echo.Context) error {
 			header := c.Request().Header.Get("Authorization")
 			token := ""
 			if after, ok := strings.CutPrefix(header, bearerPrefix); ok {

@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v5"
 
 	"github.com/damonto/sigmo/internal/app/httpapi"
 	mmodem "github.com/damonto/sigmo/internal/pkg/modem"
@@ -39,7 +39,7 @@ func New(manager *mmodem.Manager) *Handler {
 	}
 }
 
-func (h *Handler) List(c echo.Context) error {
+func (h *Handler) List(c *echo.Context) error {
 	modem, err := h.findModem(c.Param("id"))
 	if err != nil {
 		return h.modemLookupError(c, err, errorCodeListMessagesFailed)
@@ -51,7 +51,7 @@ func (h *Handler) List(c echo.Context) error {
 	return c.JSON(http.StatusOK, response)
 }
 
-func (h *Handler) ListByParticipant(c echo.Context) error {
+func (h *Handler) ListByParticipant(c *echo.Context) error {
 	modem, err := h.findModem(c.Param("id"))
 	if err != nil {
 		return h.modemLookupError(c, err, errorCodeListMessageThreadFailed)
@@ -73,7 +73,7 @@ func (h *Handler) ListByParticipant(c echo.Context) error {
 	return c.JSON(http.StatusOK, response)
 }
 
-func (h *Handler) Send(c echo.Context) error {
+func (h *Handler) Send(c *echo.Context) error {
 	modem, err := h.findModem(c.Param("id"))
 	if err != nil {
 		return h.modemLookupError(c, err, errorCodeSendMessageFailed)
@@ -94,7 +94,7 @@ func (h *Handler) Send(c echo.Context) error {
 	return c.NoContent(http.StatusNoContent)
 }
 
-func (h *Handler) DeleteByParticipant(c echo.Context) error {
+func (h *Handler) DeleteByParticipant(c *echo.Context) error {
 	modem, err := h.findModem(c.Param("id"))
 	if err != nil {
 		return h.modemLookupError(c, err, errorCodeDeleteMessageThreadFailed)
@@ -115,7 +115,7 @@ func (h *Handler) DeleteByParticipant(c echo.Context) error {
 	return c.NoContent(http.StatusNoContent)
 }
 
-func participantFromParam(c echo.Context) (string, error) {
+func participantFromParam(c *echo.Context) (string, error) {
 	raw := c.Param("participant")
 	if raw == "" {
 		return "", errParticipantRequired
@@ -127,7 +127,7 @@ func participantFromParam(c echo.Context) (string, error) {
 	return participant, nil
 }
 
-func (h *Handler) modemLookupError(c echo.Context, err error, internalErrorCode string) error {
+func (h *Handler) modemLookupError(c *echo.Context, err error, internalErrorCode string) error {
 	if errors.Is(err, errModemNotFound) {
 		return httpapi.NotFound(c, errorCodeModemNotFound, err)
 	}
