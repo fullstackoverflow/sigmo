@@ -31,6 +31,8 @@ type Manager struct {
 	subscribe  sync.Once
 }
 
+var errModemRequired = errors.New("modem is required")
+
 type ModemEventType int
 
 const (
@@ -190,13 +192,16 @@ func (m *Manager) Subscribe(subscriber func(ModemEvent) error) (func(), error) {
 	return unsubscribe, nil
 }
 
-func (m *Manager) WaitForModem(ctx context.Context, modemID string) (*Modem, error) {
+func (m *Manager) WaitForModem(ctx context.Context, current *Modem) (*Modem, error) {
+	if current == nil {
+		return nil, errModemRequired
+	}
 	ready := make(chan *Modem, 1)
 	notify := func(event ModemEvent) error {
 		if event.Type != ModemEventAdded || event.Modem == nil {
 			return nil
 		}
-		if event.Modem.EquipmentIdentifier != modemID {
+		if !isReplacementModem(current, event.Modem) {
 			return nil
 		}
 		select {
@@ -212,12 +217,37 @@ func (m *Manager) WaitForModem(ctx context.Context, modemID string) (*Modem, err
 	}
 	defer unsubscribe()
 
+	if modem := m.findReplacementModem(current); modem != nil {
+		return modem, nil
+	}
+
 	select {
 	case modem := <-ready:
 		return modem, nil
 	case <-ctx.Done():
 		return nil, ctx.Err()
 	}
+}
+
+func (m *Manager) findReplacementModem(current *Modem) *Modem {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	for _, modem := range m.modems {
+		if isReplacementModem(current, modem) {
+			return modem
+		}
+	}
+	return nil
+}
+
+func isReplacementModem(current *Modem, candidate *Modem) bool {
+	if current == nil || candidate == nil {
+		return false
+	}
+	if candidate.EquipmentIdentifier != current.EquipmentIdentifier {
+		return false
+	}
+	return candidate != current
 }
 
 func (m *Manager) deleteAndUpdate(modem *Modem) {

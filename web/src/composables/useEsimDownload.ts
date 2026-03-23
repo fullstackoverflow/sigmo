@@ -57,6 +57,13 @@ const progressSteps: Record<Exclude<EsimDownloadStage, ''>, number> = {
 const installingCeiling = 90
 const installingTickMs = 400
 const installingStep = 2
+const compactEsimValue = (value: string) => value.replace(/\s+/g, '')
+
+const normalizeInstallPayload = (payload: InstallPayload): InstallPayload => ({
+  smdp: compactEsimValue(payload.smdp),
+  activationCode: compactEsimValue(payload.activationCode),
+  confirmationCode: payload.confirmationCode.trim(),
+})
 
 export const useEsimDownload = (modemId: Ref<string>, options?: Options) => {
   const downloadState = ref<EsimDownloadState>('idle')
@@ -184,6 +191,7 @@ export const useEsimDownload = (modemId: Ref<string>, options?: Options) => {
     if (!modemId.value || modemId.value === 'unknown') return
     closeWebSocket()
     resetState()
+    const normalizedPayload = normalizeInstallPayload(payload)
 
     downloadState.value = 'connecting'
     setStage('initializing')
@@ -192,9 +200,9 @@ export const useEsimDownload = (modemId: Ref<string>, options?: Options) => {
     ws.onopen = () => {
       sendMessage({
         type: 'start',
-        smdp: payload.smdp.trim(),
-        activationCode: payload.activationCode.trim(),
-        confirmationCode: payload.confirmationCode.trim(),
+        smdp: normalizedPayload.smdp,
+        activationCode: normalizedPayload.activationCode,
+        confirmationCode: normalizedPayload.confirmationCode,
       })
     }
     ws.onmessage = (event) => {

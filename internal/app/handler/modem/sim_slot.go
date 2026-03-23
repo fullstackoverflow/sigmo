@@ -27,7 +27,7 @@ func (s *Service) SwitchSimSlot(ctx context.Context, modem *mmodem.Modem, identi
 		slog.Error("failed to set primary SIM slot", "modem", modem.EquipmentIdentifier, "error", err)
 		return err
 	}
-	_, err = s.manager.WaitForModem(ctx, modem.EquipmentIdentifier)
+	_, err = s.manager.WaitForModem(ctx, modem)
 	if err != nil {
 		slog.Error("failed to wait for modem", "modem", modem.EquipmentIdentifier, "error", err)
 	}

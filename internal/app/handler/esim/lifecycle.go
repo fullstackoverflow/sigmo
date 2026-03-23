@@ -50,7 +50,7 @@ func (s *Service) Enable(ctx context.Context, modem *mmodem.Modem, iccid sgp22.I
 		return err
 	}
 
-	target, err := s.manager.WaitForModem(ctx, modem.EquipmentIdentifier)
+	target, err := s.manager.WaitForModem(ctx, modem)
 	if err != nil {
 		slog.Error("failed to wait for modem", "modem", modem.EquipmentIdentifier, "error", err)
 		return err

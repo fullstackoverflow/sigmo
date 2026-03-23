@@ -43,7 +43,7 @@ func (s *Service) UpdateMSISDN(ctx context.Context, modem *mmodem.Modem, number 
 		slog.Error("failed to restart modem", "modem", modem.EquipmentIdentifier, "error", err)
 		return err
 	}
-	_, err = s.manager.WaitForModem(ctx, modem.EquipmentIdentifier)
+	_, err = s.manager.WaitForModem(ctx, modem)
 	if err != nil {
 		slog.Error("failed to wait for modem", "modem", modem.EquipmentIdentifier, "error", err)
 	}

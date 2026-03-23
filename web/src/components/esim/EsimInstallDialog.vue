@@ -23,12 +23,6 @@ import {
   type EmittedError,
 } from 'vue-qrcode-reader'
 
-type InstallPayload = {
-  smdp: string
-  activationCode: string
-  confirmationCode: string
-}
-
 type InstallFormValues = {
   smdp: string
   activationCode: string
@@ -45,7 +39,11 @@ const props = withDefaults(
 )
 
 const emit = defineEmits<{
-  (event: 'confirm', payload: InstallPayload): void
+  (event: 'confirm', payload: {
+    smdp: string
+    activationCode: string
+    confirmationCode: string
+  }): void
   (event: 'discover'): void
 }>()
 
@@ -58,28 +56,29 @@ const activationPlaceholder = computed(() => t('modemDetail.esim.activationCode'
 const confirmationPlaceholder = computed(() => t('modemDetail.esim.confirmationCode'))
 
 const confirmationRequired = ref(false)
+const compactEsimValue = (value: string) => value.replace(/\s+/g, '')
 
-  const buildInstallSchemaDefinition = (requiresConfirmation: boolean) =>
-    z.object({
-      smdp: z
-        .string({ error: t('modemDetail.esim.validation.smdpRequired') })
-        .trim()
-        .min(1, t('modemDetail.esim.validation.smdpRequired'))
-        .transform((value) => value.trim()),
-      activationCode: z
-        .string()
-        .optional()
-        .transform((value) => value?.trim() ?? ''),
-      confirmationCode: requiresConfirmation
-        ? z
-            .string({ error: t('modemDetail.validation.required') })
-            .trim()
-            .min(1, t('modemDetail.validation.required'))
-        : z
-            .string()
-            .optional()
-            .transform((value) => value?.trim() ?? ''),
-    })
+const buildInstallSchemaDefinition = (requiresConfirmation: boolean) =>
+  z.object({
+    smdp: z
+      .string({ error: t('modemDetail.esim.validation.smdpRequired') })
+      .trim()
+      .min(1, t('modemDetail.esim.validation.smdpRequired'))
+      .transform((value) => compactEsimValue(value)),
+    activationCode: z
+      .string()
+      .optional()
+      .transform((value) => compactEsimValue(value ?? '')),
+    confirmationCode: requiresConfirmation
+      ? z
+          .string({ error: t('modemDetail.validation.required') })
+          .trim()
+          .min(1, t('modemDetail.validation.required'))
+      : z
+          .string()
+          .optional()
+          .transform((value) => value?.trim() ?? ''),
+  })
 
 const installSchema = computed(() =>
   toTypedSchema(buildInstallSchemaDefinition(confirmationRequired.value)),
@@ -123,15 +122,15 @@ const scanConstraints = { facingMode: 'environment' } satisfies MediaTrackConstr
 const scanFormats: BarcodeFormat[] = ['qr_code']
 
 const parseLpaCode = (raw: string) => {
-  const trimmed = raw.trim()
-  const parts = trimmed.split('$')
+  const normalized = compactEsimValue(raw)
+  const parts = normalized.split('$')
   const prefix = parts?.[0]?.toUpperCase() ?? ''
   if (parts.length < 3 || !prefix.startsWith('LPA:')) {
     return null
   }
-  const smdp = parts[1] ?? ''
-  const matchingId = parts[2] ?? ''
-  const oid = parts[3] ?? ''
+  const smdp = compactEsimValue(parts[1] ?? '')
+  const matchingId = compactEsimValue(parts[2] ?? '')
+  const oid = compactEsimValue(parts[3] ?? '')
   const confirmationFlag = parts[4] ?? ''
   const activationCode = matchingId || oid
   return {
@@ -159,7 +158,7 @@ const applyLpaPayload = (payload: {
 const handleSmdpInput = (event: Event) => {
   const target = event.target
   if (!(target instanceof HTMLInputElement)) return
-  const value = target.value.trim()
+  const value = compactEsimValue(target.value)
   if (!value.toUpperCase().startsWith('LPA:1')) return
   const parsed = parseLpaCode(value)
   if (!parsed) return
@@ -200,9 +199,9 @@ const openScanDialog = () => {
 
 const onSubmit = handleSubmit((values) => {
   emit('confirm', {
-    smdp: values.smdp,
-    activationCode: values.activationCode,
-    confirmationCode: values.confirmationCode ?? '',
+    smdp: compactEsimValue(values.smdp),
+    activationCode: compactEsimValue(values.activationCode),
+    confirmationCode: values.confirmationCode?.trim() ?? '',
   })
   open.value = false
   // Reset form after dialog is closed
@@ -212,12 +211,12 @@ const onSubmit = handleSubmit((values) => {
 })
 
 const applyDiscoverAddress = (address: string) => {
-  const trimmed = address.trim()
-  if (!trimmed || isSubmitting.value) return
+  const normalized = compactEsimValue(address)
+  if (!normalized || isSubmitting.value) return
   confirmationRequired.value = false
   resetForm({
     values: {
-      smdp: trimmed,
+      smdp: normalized,
       activationCode: '',
       confirmationCode: '',
     },

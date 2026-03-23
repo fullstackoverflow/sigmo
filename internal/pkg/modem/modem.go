@@ -81,7 +81,7 @@ func (m *Modem) Restart(compatible bool) error {
 	// Some legacy modems require the modem to be disabled and enabled to take effect.
 	if e := m.dbusObject.Call(ModemInterface+".Simple.GetStatus", 0).Err; e == nil {
 		slog.Info("try to disable and enable modem", "modem", m.EquipmentIdentifier)
-		err = errors.Join(err, m.Disable(), m.Enable())
+		err = errors.Join(err, m.togglePower())
 	}
 
 	// This workaround is needed for some modems that don't properly reload.
@@ -95,6 +95,24 @@ func (m *Modem) Restart(compatible bool) error {
 		return err
 	}
 	return err
+}
+
+func (m *Modem) togglePower() error {
+	if err := m.Disable(); err != nil {
+		if !isTransientRestartError(err) {
+			return err
+		}
+		// Some modems disappear from DBus or cancel in-flight calls while ModemManager is replacing the object.
+		slog.Info("ignoring transient restart error", "modem", m.EquipmentIdentifier, "path", m.objectPath, "action", "disabling", "error", err)
+	}
+	if err := m.Enable(); err != nil {
+		if !isTransientRestartError(err) {
+			return err
+		}
+		// Some modems disappear from DBus or cancel in-flight calls while ModemManager is replacing the object.
+		slog.Info("ignoring transient restart error", "modem", m.EquipmentIdentifier, "path", m.objectPath, "action", "enabling", "error", err)
+	}
+	return nil
 }
 
 func (m *Modem) PrimaryPortType() ModemPortType {
