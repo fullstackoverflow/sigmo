@@ -1,13 +1,14 @@
 package auth
 
 import (
+	"context"
 	"errors"
-	"fmt"
 	"log/slog"
 
 	"github.com/damonto/sigmo/internal/app/auth"
 	"github.com/damonto/sigmo/internal/pkg/config"
 	"github.com/damonto/sigmo/internal/pkg/notify"
+	notifyevent "github.com/damonto/sigmo/internal/pkg/notify/event"
 )
 
 var (
@@ -31,7 +32,7 @@ func (s *Service) OTPRequired() bool {
 	return s.cfg.App.OTPRequired
 }
 
-func (s *Service) SendOTP() error {
+func (s *Service) SendOTP(ctx context.Context) error {
 	if !s.OTPRequired() {
 		return nil
 	}
@@ -48,7 +49,7 @@ func (s *Service) SendOTP() error {
 		slog.Error("failed to create notifier", "error", err)
 		return err
 	}
-	if err := notifier.Send(notify.TextMessage{Text: fmt.Sprintf("Your verification code is %s", code)}, s.cfg.App.AuthProviders...); err != nil {
+	if err := notifier.Send(ctx, notifyevent.OTPEvent{Code: code}, s.cfg.App.AuthProviders...); err != nil {
 		slog.Error("failed to send OTP notification", "error", err)
 		return err
 	}

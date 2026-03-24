@@ -34,7 +34,7 @@ func (h *Handler) OTPRequirement(c *echo.Context) error {
 }
 
 func (h *Handler) SendOTP(c *echo.Context) error {
-	if err := h.service.SendOTP(); err != nil {
+	if err := h.service.SendOTP(c.Request().Context()); err != nil {
 		if errors.Is(err, auth.ErrOTPCooldown) {
 			return httpapi.TooManyRequests(c, errorCodeOTPCooldown, err)
 		}

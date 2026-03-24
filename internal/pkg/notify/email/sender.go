@@ -1,24 +1,23 @@
-package notify
+package email
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strings"
 
 	"github.com/damonto/sigmo/internal/pkg/config"
+	notifyevent "github.com/damonto/sigmo/internal/pkg/notify/event"
 	"github.com/wneessen/go-mail"
 )
 
-const defaultEmailSubject = "Sigmo Notification"
-
-type Email struct {
+type Sender struct {
 	client     *mail.Client
 	from       string
-	subject    string
 	recipients []string
 }
 
-func NewEmail(cfg *config.Channel) (*Email, error) {
+func New(cfg *config.Channel) (*Sender, error) {
 	host := strings.TrimSpace(cfg.SMTPHost)
 	if host == "" {
 		return nil, errors.New("email smtp_host is required")
@@ -32,11 +31,7 @@ func NewEmail(cfg *config.Channel) (*Email, error) {
 	}
 	recipients := cfg.Recipients.Strings()
 	if len(recipients) == 0 {
-		return nil, errors.New("email recipients is required")
-	}
-	subject := strings.TrimSpace(cfg.Subject)
-	if subject == "" {
-		subject = defaultEmailSubject
+		return nil, errors.New("email recipients are required")
 	}
 
 	tlsPolicy, err := parseTLSPolicy(cfg.TLSPolicy)
@@ -44,11 +39,10 @@ func NewEmail(cfg *config.Channel) (*Email, error) {
 		return nil, err
 	}
 
-	options := []mail.Option{}
+	options := []mail.Option{mail.WithPort(cfg.SMTPPort)}
 	if cfg.SSL {
 		options = append(options, mail.WithSSLPort(true))
 	}
-	options = append(options, mail.WithPort(cfg.SMTPPort))
 
 	username := strings.TrimSpace(cfg.SMTPUsername)
 	password := strings.TrimSpace(cfg.SMTPPassword)
@@ -56,8 +50,7 @@ func NewEmail(cfg *config.Channel) (*Email, error) {
 		if username == "" || password == "" {
 			return nil, errors.New("email smtp_username and smtp_password must be set together")
 		}
-		options = append(
-			options,
+		options = append(options,
 			mail.WithSMTPAuth(mail.SMTPAuthAutoDiscover),
 			mail.WithUsername(username),
 			mail.WithPassword(password),
@@ -70,48 +63,37 @@ func NewEmail(cfg *config.Channel) (*Email, error) {
 	}
 	client.SetTLSPolicy(tlsPolicy)
 
-	return &Email{
+	return &Sender{
 		client:     client,
 		from:       from,
-		subject:    subject,
 		recipients: recipients,
 	}, nil
 }
 
-func (e *Email) Send(message Message) error {
-	if message == nil {
-		return errors.New("email message is required")
-	}
-	if len(e.recipients) == 0 {
+func (s *Sender) Send(ctx context.Context, ev notifyevent.Event) error {
+	if len(s.recipients) == 0 {
 		return errors.New("email recipients are required")
+	}
+	content, err := render(ev)
+	if err != nil {
+		return err
 	}
 
 	msg := mail.NewMsg()
-	if err := msg.From(e.from); err != nil {
+	if err := msg.From(s.from); err != nil {
 		return fmt.Errorf("setting email from: %w", err)
 	}
-	if err := msg.To(e.recipients...); err != nil {
+	if err := msg.To(s.recipients...); err != nil {
 		return fmt.Errorf("setting email recipients: %w", err)
 	}
-	msg.Subject(e.subject)
-	msg.SetBodyString(mail.TypeTextPlain, message.String())
+	msg.Subject(content.Subject)
+	msg.SetBodyString(mail.TypeTextPlain, content.TextBody)
+	if strings.TrimSpace(content.HTMLBody) != "" {
+		msg.AddAlternativeString(mail.TypeTextHTML, content.HTMLBody)
+	}
 
-	if err := e.client.DialAndSend(msg); err != nil {
+	if err := s.client.DialAndSendWithContext(ctx, msg); err != nil {
 		return fmt.Errorf("sending email: %w", err)
 	}
 	return nil
-}
-
-func parseTLSPolicy(raw string) (mail.TLSPolicy, error) {
-	value := strings.ToLower(strings.TrimSpace(raw))
-	switch value {
-	case "", "mandatory":
-		return mail.TLSMandatory, nil
-	case "opportunistic":
-		return mail.TLSOpportunistic, nil
-	case "none", "notls", "no_tls":
-		return mail.NoTLS, nil
-	default:
-		return mail.TLSMandatory, fmt.Errorf("unsupported email tls_policy: %q", raw)
-	}
 }

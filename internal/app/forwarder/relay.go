@@ -14,6 +14,7 @@ import (
 	"github.com/damonto/sigmo/internal/pkg/config"
 	"github.com/damonto/sigmo/internal/pkg/modem"
 	"github.com/damonto/sigmo/internal/pkg/notify"
+	notifyevent "github.com/damonto/sigmo/internal/pkg/notify/event"
 )
 
 type Relay struct {
@@ -111,7 +112,7 @@ func (r *Relay) addModem(ctx context.Context, path dbus.ObjectPath, m *modem.Mod
 
 	go func() {
 		if err := m.Messaging().Subscribe(modemCtx, func(message *modem.SMS) error {
-			return r.forward(m, message)
+			return r.forward(modemCtx, m, message)
 		}); err != nil && !errors.Is(err, context.Canceled) {
 			slog.Error("modem message subscription stopped", "error", err, "modem", m.EquipmentIdentifier)
 		}
@@ -150,22 +151,22 @@ func (r *Relay) stopAll() {
 	}
 }
 
-func (r *Relay) forward(m *modem.Modem, message *modem.SMS) error {
+func (r *Relay) forward(ctx context.Context, m *modem.Modem, message *modem.SMS) error {
 	incoming := message.State == modem.SMSStateReceived || message.State == modem.SMSStateReceiving
 	if incoming && !message.Timestamp.IsZero() && time.Since(message.Timestamp) > 30*time.Minute {
 		slog.Info("skipping SMS notification older than 30 minutes", "timestamp", message.Timestamp, "modem", m.EquipmentIdentifier)
 		return nil
 	}
-	return r.notifier.Send(r.formatMessage(m, message))
+	return r.notifier.Send(ctx, r.formatMessage(m, message))
 }
 
-func (r *Relay) formatMessage(m *modem.Modem, message *modem.SMS) notify.SMSMessage {
+func (r *Relay) formatMessage(m *modem.Modem, message *modem.SMS) notifyevent.SMSEvent {
 	incoming := message.State == modem.SMSStateReceived || message.State == modem.SMSStateReceiving
 	sender, recipient := message.Number, m.Number
 	if !incoming {
 		sender, recipient = recipient, sender
 	}
-	return notify.SMSMessage{
+	return notifyevent.SMSEvent{
 		Modem:    r.modemName(m),
 		From:     sender,
 		To:       recipient,

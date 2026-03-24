@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/BurntSushi/toml"
 )
@@ -40,12 +41,11 @@ type Channel struct {
 	SMTPUsername string `toml:"smtp_username"`
 	SMTPPassword string `toml:"smtp_password"`
 	From         string `toml:"from"`
-	Subject      string `toml:"subject"`
 	TLSPolicy    string `toml:"tls_policy"`
 	SSL          bool   `toml:"ssl"`
 
 	// Gotify
-	Priority int    `toml:"priority"`
+	Priority int `toml:"priority"`
 }
 
 type Modem struct {
@@ -64,6 +64,13 @@ func Load(path string) (*Config, error) {
 	meta, err := toml.Decode(string(data), &config)
 	if err != nil {
 		return nil, fmt.Errorf("parsing config file: %w", err)
+	}
+	if undecoded := meta.Undecoded(); len(undecoded) > 0 {
+		unknown := make([]string, 0, len(undecoded))
+		for _, key := range undecoded {
+			unknown = append(unknown, key.String())
+		}
+		return nil, fmt.Errorf("unknown config fields: %s", strings.Join(unknown, ", "))
 	}
 	if !meta.IsDefined("app", "otp_required") {
 		config.App.OTPRequired = true

@@ -135,12 +135,10 @@ Configures channels used for receiving **Login OTPs** and **Forwarded SMS**.
 [channels.bark]
   endpoint = "https://api.day.app"
   recipients = ["device_key_1", "device_key_2"]
-  subject = "Sigmo Alert"
 ```
 
 - `endpoint`: Bark server URL. Leave empty to use the official `https://api.day.app`. Sigmo automatically appends `/push`.
 - `recipients`: List of Device Keys from the Bark App.
-- `subject`: The title of the push notification.
 
 #### Gotify (Self-Hosted)
 
@@ -148,7 +146,6 @@ Configures channels used for receiving **Login OTPs** and **Forwarded SMS**.
 [channels.gotify]
   endpoint = "https://push.example.com"
   recipients = ["AsDh82..."]
-  subject = "Sigmo Notification"
   priority = 5
 ```
 
@@ -161,11 +158,9 @@ Configures channels used for receiving **Login OTPs** and **Forwarded SMS**.
 ```toml
 [channels.sc3]
   endpoint = "https://<uid>.push.ft07.com/send/<sendkey>.send"
-  subject = "Sigmo Login"
 ```
 
 - `endpoint`: The full URL including the SendKey.
-- `subject`: Message title.
 
 #### HTTP (Webhook)
 
@@ -178,7 +173,7 @@ Configures channels used for receiving **Login OTPs** and **Forwarded SMS**.
 ```
 
 - `endpoint`: The target Webhook URL.
-- `headers`: Key-Value pairs for custom HTTP headers. Sigmo sends a JSON payload containing the message body.
+- `headers`: Key-Value pairs for custom HTTP headers. Sigmo sends a JSON envelope like `{"kind":"otp","payload":{...}}` or `{"kind":"sms","payload":{...}}`.
 
 #### Email (SMTP)
 
@@ -190,7 +185,6 @@ Configures channels used for receiving **Login OTPs** and **Forwarded SMS**.
   smtp_password = "app_password"
   from = "Sigmo <yourname@gmail.com>"
   recipients = ["admin@example.com"]
-  subject = "Sigmo Alert"
   tls_policy = "mandatory"
   ssl = false
 ```

@@ -12,17 +12,14 @@
   [channels.bark]
     endpoint = "https://api.day.app"
     recipients = ["your_device_key"]
-    subject = "Sigmo Notification"
 
   [channels.gotify]
     endpoint = "https://push.example.de"
     recipients = ["your_app_token"]
-    subject = "Sigmo Notification"
     priority = 5
 
   [channels.sc3]
     endpoint = "https://123.push.ft07.com/send/your_sendkey.send"
-    subject = "Sigmo Notification"
 
   [channels.http]
     endpoint = "https://httpbin.org/post"
@@ -38,6 +35,5 @@
     smtp_password = "app_password"
     from = "sigmo@example.com"
     recipients = ["ops@example.com"]
-    subject = "Sigmo Notification"
     tls_policy = "mandatory"
     ssl = false
