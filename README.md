@@ -123,11 +123,11 @@ Configures channels used for receiving **Login OTPs** and **Forwarded SMS**.
 ```toml
 [channels.telegram]
   bot_token = "123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11"
-  recipients = [123456789, 987654321]
+  recipients = ["123456789", "987654321"]
 ```
 
 - `bot_token`: The token received from @BotFather.
-- `recipients`: Array of Integer Chat IDs authorized to receive messages.
+- `recipients`: Array of Strings Chat IDs authorized to receive messages.
 
 #### Bark (iOS Push)
 
