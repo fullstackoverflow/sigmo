@@ -15,8 +15,11 @@ import (
 )
 
 type Handler struct {
-	manager *mmodem.Manager
-	service *Service
+	manager  *mmodem.Manager
+	catalog  *catalog
+	simSlot  *simSlot
+	msisdn   *msisdn
+	settings *settings
 }
 
 const (
@@ -51,13 +54,16 @@ var (
 
 func New(cfg *config.Config, manager *mmodem.Manager) *Handler {
 	return &Handler{
-		manager: manager,
-		service: NewService(cfg, manager),
+		manager:  manager,
+		catalog:  newCatalog(cfg, manager),
+		simSlot:  newSIMSlot(manager),
+		msisdn:   newMSISDN(cfg, manager),
+		settings: newSettings(cfg),
 	}
 }
 
 func (h *Handler) List(c *echo.Context) error {
-	response, err := h.service.List()
+	response, err := h.catalog.List()
 	if err != nil {
 		return httpapi.Internal(c, errorCodeListModemsFailed)
 	}
@@ -69,7 +75,7 @@ func (h *Handler) Get(c *echo.Context) error {
 	if err != nil {
 		return h.modemLookupError(c, err, errorCodeGetModemFailed)
 	}
-	response, err := h.service.Get(modem)
+	response, err := h.catalog.Get(modem)
 	if err != nil {
 		return httpapi.Internal(c, errorCodeGetModemFailed)
 	}
@@ -89,7 +95,7 @@ func (h *Handler) SwitchSimSlot(c *echo.Context) error {
 	ctx, cancel := context.WithTimeout(c.Request().Context(), switchSimSlotTimeout)
 	defer cancel()
 
-	if err := h.service.SwitchSimSlot(ctx, modem, identifier); err != nil {
+	if err := h.simSlot.Switch(ctx, modem, identifier); err != nil {
 		if errors.Is(err, context.DeadlineExceeded) {
 			return httpapi.RequestTimeout(c, errorCodeSimSlotSwitchTimeout, errSwitchSimSlotTimeout)
 		}
@@ -126,7 +132,7 @@ func (h *Handler) UpdateMSISDN(c *echo.Context) error {
 	ctx, cancel := context.WithTimeout(c.Request().Context(), updateMSISDNTimeout)
 	defer cancel()
 
-	if err := h.service.UpdateMSISDN(ctx, modem, req.Number); err != nil {
+	if err := h.msisdn.Update(ctx, modem, req.Number); err != nil {
 		if errors.Is(err, context.DeadlineExceeded) {
 			return httpapi.RequestTimeout(c, "msisdn_update_timeout", errUpdateMSISDNTimeout)
 		}
@@ -147,7 +153,7 @@ func (h *Handler) UpdateSettings(c *echo.Context) error {
 	if err := httpapi.BindAndValidate(c, &req, errorCodeUpdateSettingsInvalidRequest); err != nil {
 		return err
 	}
-	if err := h.service.UpdateSettings(modem.EquipmentIdentifier, req); err != nil {
+	if err := h.settings.Update(modem.EquipmentIdentifier, req); err != nil {
 		if errors.Is(err, errCompatibleRequired) {
 			return httpapi.BadRequest(c, errorCodeCompatibleRequired, err)
 		}
@@ -161,7 +167,7 @@ func (h *Handler) GetSettings(c *echo.Context) error {
 	if err != nil {
 		return h.modemLookupError(c, err, errorCodeGetSettingsFailed)
 	}
-	response := h.service.GetSettings(modem.EquipmentIdentifier)
+	response := h.settings.Get(modem.EquipmentIdentifier)
 	return c.JSON(http.StatusOK, response)
 }
 

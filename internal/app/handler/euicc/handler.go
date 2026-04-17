@@ -16,7 +16,7 @@ import (
 type Handler struct {
 	cfg     *config.Config
 	manager *mmodem.Manager
-	service *Service
+	euicc   *euicc
 }
 
 const (
@@ -31,7 +31,7 @@ func New(cfg *config.Config, manager *mmodem.Manager) *Handler {
 	return &Handler{
 		cfg:     cfg,
 		manager: manager,
-		service: NewService(cfg),
+		euicc:   newEUICC(cfg),
 	}
 }
 
@@ -40,7 +40,7 @@ func (h *Handler) Get(c *echo.Context) error {
 	if err != nil {
 		return h.modemLookupError(c, err, errorCodeGetEUICCFailed)
 	}
-	response, err := h.service.Get(modem)
+	response, err := h.euicc.Get(modem)
 	if err != nil {
 		if errors.Is(err, lpa.ErrNoSupportedAID) {
 			return httpapi.NotFound(c, errorCodeEuiccNotSupported, err)

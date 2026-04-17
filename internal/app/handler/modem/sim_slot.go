@@ -15,11 +15,19 @@ var (
 	errSimSlotAlreadyActive  = errors.New("sim slot already active")
 )
 
-func (s *Service) SwitchSimSlot(ctx context.Context, modem *mmodem.Modem, identifier string) error {
+type simSlot struct {
+	manager *mmodem.Manager
+}
+
+func newSIMSlot(manager *mmodem.Manager) *simSlot {
+	return &simSlot{manager: manager}
+}
+
+func (s *simSlot) Switch(ctx context.Context, modem *mmodem.Modem, identifier string) error {
 	if identifier == "" {
 		return errSimIdentifierRequired
 	}
-	slotIndex, err := s.findSimSlotIndex(modem, identifier)
+	slotIndex, err := s.findIndex(modem, identifier)
 	if err != nil {
 		return err
 	}
@@ -34,7 +42,7 @@ func (s *Service) SwitchSimSlot(ctx context.Context, modem *mmodem.Modem, identi
 	return err
 }
 
-func (s *Service) findSimSlotIndex(modem *mmodem.Modem, identifier string) (uint32, error) {
+func (s *simSlot) findIndex(modem *mmodem.Modem, identifier string) (uint32, error) {
 	if len(modem.SimSlots) == 0 {
 		return 0, errSimSlotsUnavailable
 	}

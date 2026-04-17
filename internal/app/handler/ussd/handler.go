@@ -15,7 +15,7 @@ import (
 
 type Handler struct {
 	manager *mmodem.Manager
-	service *Service
+	session *session
 }
 
 const executeTimeout = time.Minute
@@ -37,7 +37,7 @@ var errExecuteTimeout = errors.New("ussd request timed out, please retry")
 func New(manager *mmodem.Manager) *Handler {
 	return &Handler{
 		manager: manager,
-		service: NewService(),
+		session: newSession(),
 	}
 }
 
@@ -54,7 +54,7 @@ func (h *Handler) Execute(c *echo.Context) error {
 	ctx, cancel := context.WithTimeout(c.Request().Context(), executeTimeout)
 	defer cancel()
 
-	response, err := h.service.Execute(ctx, modem, req.Action, req.Code)
+	response, err := h.session.Execute(ctx, modem, req.Action, req.Code)
 	if err != nil {
 		if errors.Is(err, context.DeadlineExceeded) {
 			return httpapi.RequestTimeout(c, errorCodeUSSDTimeout, errExecuteTimeout)

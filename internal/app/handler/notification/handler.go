@@ -17,8 +17,8 @@ import (
 )
 
 type Handler struct {
-	manager *mmodem.Manager
-	service *Service
+	manager       *mmodem.Manager
+	notifications *notification
 }
 
 const (
@@ -39,8 +39,8 @@ var (
 
 func New(cfg *config.Config, manager *mmodem.Manager) *Handler {
 	return &Handler{
-		manager: manager,
-		service: NewService(cfg),
+		manager:       manager,
+		notifications: newNotification(cfg),
 	}
 }
 
@@ -49,7 +49,7 @@ func (h *Handler) List(c *echo.Context) error {
 	if err != nil {
 		return h.modemLookupError(c, err, errorCodeListNotificationsFailed)
 	}
-	response, err := h.service.List(modem)
+	response, err := h.notifications.List(modem)
 	if err != nil {
 		if errors.Is(err, lpa.ErrNoSupportedAID) {
 			return httpapi.NotFound(c, errorCodeEuiccNotSupported, err)
@@ -71,7 +71,7 @@ func (h *Handler) Resend(c *echo.Context) error {
 		}
 		return httpapi.BadRequest(c, errorCodeInvalidSequenceNumber, err)
 	}
-	if err := h.service.Resend(modem, sequence); err != nil {
+	if err := h.notifications.Resend(modem, sequence); err != nil {
 		if errors.Is(err, lpa.ErrNoSupportedAID) {
 			return httpapi.NotFound(c, errorCodeEuiccNotSupported, err)
 		}
@@ -92,7 +92,7 @@ func (h *Handler) Delete(c *echo.Context) error {
 		}
 		return httpapi.BadRequest(c, errorCodeInvalidSequenceNumber, err)
 	}
-	if err := h.service.Delete(modem, sequence); err != nil {
+	if err := h.notifications.Delete(modem, sequence); err != nil {
 		if errors.Is(err, lpa.ErrNoSupportedAID) {
 			return httpapi.NotFound(c, errorCodeEuiccNotSupported, err)
 		}

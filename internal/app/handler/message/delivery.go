@@ -13,7 +13,7 @@ var (
 	errTextRequired      = errors.New("text is required")
 )
 
-func (s *Service) Send(modem *mmodem.Modem, to string, text string) error {
+func (m *message) Send(modem *mmodem.Modem, to string, text string) error {
 	if strings.TrimSpace(to) == "" {
 		return errRecipientRequired
 	}

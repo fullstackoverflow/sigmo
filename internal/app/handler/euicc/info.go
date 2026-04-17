@@ -9,18 +9,18 @@ import (
 	mmodem "github.com/damonto/sigmo/internal/pkg/modem"
 )
 
-type Service struct {
+type euicc struct {
 	cfg *config.Config
 }
 
-func NewService(cfg *config.Config) *Service {
-	return &Service{
+func newEUICC(cfg *config.Config) *euicc {
+	return &euicc{
 		cfg: cfg,
 	}
 }
 
-func (s *Service) Get(modem *mmodem.Modem) (*EuiccResponse, error) {
-	client, err := lpa.New(modem, s.cfg)
+func (e *euicc) Get(modem *mmodem.Modem) (*EuiccResponse, error) {
+	client, err := lpa.New(modem, e.cfg)
 	if err != nil {
 		if errors.Is(err, lpa.ErrNoSupportedAID) {
 			return nil, err

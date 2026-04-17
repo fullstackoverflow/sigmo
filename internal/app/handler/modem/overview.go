@@ -12,27 +12,27 @@ import (
 	mmodem "github.com/damonto/sigmo/internal/pkg/modem"
 )
 
-type Service struct {
+type catalog struct {
 	cfg     *config.Config
 	manager *mmodem.Manager
 }
 
-func NewService(cfg *config.Config, manager *mmodem.Manager) *Service {
-	return &Service{
+func newCatalog(cfg *config.Config, manager *mmodem.Manager) *catalog {
+	return &catalog{
 		cfg:     cfg,
 		manager: manager,
 	}
 }
 
-func (s *Service) List() ([]*ModemResponse, error) {
-	modems, err := s.manager.Modems()
+func (c *catalog) List() ([]*ModemResponse, error) {
+	modems, err := c.manager.Modems()
 	if err != nil {
 		slog.Error("failed to list modems", "error", err)
 		return nil, err
 	}
 	response := make([]*ModemResponse, 0, len(modems))
-	for _, m := range modems {
-		modemResp, err := s.buildModemResponse(m)
+	for _, device := range modems {
+		modemResp, err := c.buildResponse(device)
 		if err != nil {
 			return nil, err
 		}
@@ -44,67 +44,67 @@ func (s *Service) List() ([]*ModemResponse, error) {
 	return response, nil
 }
 
-func (s *Service) Get(modem *mmodem.Modem) (*ModemResponse, error) {
-	resp, err := s.buildModemResponse(modem)
+func (c *catalog) Get(modem *mmodem.Modem) (*ModemResponse, error) {
+	resp, err := c.buildResponse(modem)
 	if err != nil {
 		return nil, err
 	}
 	return resp, nil
 }
 
-func (s *Service) buildModemResponse(m *mmodem.Modem) (*ModemResponse, error) {
-	sim, err := m.SIMs().Primary()
+func (c *catalog) buildResponse(device *mmodem.Modem) (*ModemResponse, error) {
+	sim, err := device.SIMs().Primary()
 	if err != nil {
-		slog.Error("failed to fetch SIM", "modem", m.EquipmentIdentifier, "error", err)
+		slog.Error("failed to fetch SIM", "modem", device.EquipmentIdentifier, "error", err)
 		return nil, err
 	}
 
-	percent, _, err := m.SignalQuality()
+	percent, _, err := device.SignalQuality()
 	if err != nil {
-		slog.Error("failed to fetch signal quality", "modem", m.EquipmentIdentifier, "error", err)
+		slog.Error("failed to fetch signal quality", "modem", device.EquipmentIdentifier, "error", err)
 		return nil, err
 	}
 
-	access, err := m.AccessTechnologies()
+	access, err := device.AccessTechnologies()
 	if err != nil {
-		slog.Error("failed to fetch access technologies", "modem", m.EquipmentIdentifier, "error", err)
+		slog.Error("failed to fetch access technologies", "modem", device.EquipmentIdentifier, "error", err)
 		return nil, err
 	}
 
-	threeGpp := m.ThreeGPP()
+	threeGpp := device.ThreeGPP()
 	registrationState, err := threeGpp.RegistrationState()
 	if err != nil {
-		slog.Error("failed to fetch registration state", "modem", m.EquipmentIdentifier, "error", err)
+		slog.Error("failed to fetch registration state", "modem", device.EquipmentIdentifier, "error", err)
 		return nil, err
 	}
 
 	registeredOperatorName, err := threeGpp.OperatorName()
 	if err != nil {
-		slog.Error("failed to fetch operator name", "modem", m.EquipmentIdentifier, "error", err)
+		slog.Error("failed to fetch operator name", "modem", device.EquipmentIdentifier, "error", err)
 		return nil, err
 	}
 
 	operatorCode, err := threeGpp.OperatorCode()
 	if err != nil {
-		slog.Error("failed to fetch operator code", "modem", m.EquipmentIdentifier, "error", err)
+		slog.Error("failed to fetch operator code", "modem", device.EquipmentIdentifier, "error", err)
 		return nil, err
 	}
 
 	carrierInfo := carrier.Lookup(sim.OperatorIdentifier)
-	supportsEsim, err := supportsEsim(m, s.cfg)
+	supportsEsim, err := supportsEsim(device, c.cfg)
 	if err != nil {
-		slog.Error("failed to detect eSIM support", "modem", m.EquipmentIdentifier, "error", err)
+		slog.Error("failed to detect eSIM support", "modem", device.EquipmentIdentifier, "error", err)
 		return nil, err
 	}
 
-	simSlots, err := s.buildSimSlotsResponse(m)
+	simSlots, err := c.buildSlotsResponse(device)
 	if err != nil {
-		slog.Error("failed to fetch SIM slots", "modem", m.EquipmentIdentifier, "error", err)
+		slog.Error("failed to fetch SIM slots", "modem", device.EquipmentIdentifier, "error", err)
 		return nil, err
 	}
 
-	alias := s.cfg.FindModem(m.EquipmentIdentifier).Alias
-	name := m.Model
+	alias := c.cfg.FindModem(device.EquipmentIdentifier).Alias
+	name := device.Model
 	if alias != "" {
 		name = alias
 	}
@@ -113,12 +113,12 @@ func (s *Service) buildModemResponse(m *mmodem.Modem) (*ModemResponse, error) {
 		simOperatorName = sim.OperatorName
 	}
 	return &ModemResponse{
-		Manufacturer:     m.Manufacturer,
-		ID:               m.EquipmentIdentifier,
-		FirmwareRevision: m.FirmwareRevision,
-		HardwareRevision: m.HardwareRevision,
+		Manufacturer:     device.Manufacturer,
+		ID:               device.EquipmentIdentifier,
+		FirmwareRevision: device.FirmwareRevision,
+		HardwareRevision: device.HardwareRevision,
 		Name:             name,
-		Number:           m.Number,
+		Number:           device.Number,
 		SIM: SlotResponse{
 			Active:             sim.Active,
 			OperatorName:       simOperatorName,
@@ -138,15 +138,15 @@ func (s *Service) buildModemResponse(m *mmodem.Modem) (*ModemResponse, error) {
 	}, nil
 }
 
-func (s *Service) buildSimSlotsResponse(m *mmodem.Modem) ([]SlotResponse, error) {
-	if len(m.SimSlots) == 0 {
+func (c *catalog) buildSlotsResponse(device *mmodem.Modem) ([]SlotResponse, error) {
+	if len(device.SimSlots) == 0 {
 		return []SlotResponse{}, nil
 	}
-	simSlots := make([]SlotResponse, 0, len(m.SimSlots))
-	for _, slotPath := range m.SimSlots {
-		sim, err := m.SIMs().Get(slotPath)
+	simSlots := make([]SlotResponse, 0, len(device.SimSlots))
+	for _, slotPath := range device.SimSlots {
+		sim, err := device.SIMs().Get(slotPath)
 		if err != nil {
-			slog.Error("failed to fetch SIM for slot", "modem", m.EquipmentIdentifier, "slot", slotPath, "error", err)
+			slog.Error("failed to fetch SIM for slot", "modem", device.EquipmentIdentifier, "slot", slotPath, "error", err)
 			return nil, err
 		}
 		carrierInfo := carrier.Lookup(sim.OperatorIdentifier)

@@ -7,15 +7,28 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/damonto/sigmo/internal/pkg/config"
 	mmodem "github.com/damonto/sigmo/internal/pkg/modem"
-	"github.com/damonto/sigmo/internal/pkg/modem/msisdn"
+	msisdnclient "github.com/damonto/sigmo/internal/pkg/modem/msisdn"
 )
 
 var errMSISDNInvalidNumber = errors.New("invalid phone number")
 
 var msisdnPhoneRE = regexp.MustCompile(`^\+?[0-9]{1,15}$`)
 
-func (s *Service) UpdateMSISDN(ctx context.Context, modem *mmodem.Modem, number string) error {
+type msisdn struct {
+	cfg     *config.Config
+	manager *mmodem.Manager
+}
+
+func newMSISDN(cfg *config.Config, manager *mmodem.Manager) *msisdn {
+	return &msisdn{
+		cfg:     cfg,
+		manager: manager,
+	}
+}
+
+func (m *msisdn) Update(ctx context.Context, modem *mmodem.Modem, number string) error {
 	number = strings.TrimSpace(number)
 	if !msisdnPhoneRE.MatchString(number) {
 		return errMSISDNInvalidNumber
@@ -25,7 +38,7 @@ func (s *Service) UpdateMSISDN(ctx context.Context, modem *mmodem.Modem, number 
 		slog.Error("failed to find AT port", "modem", modem.EquipmentIdentifier, "error", err)
 		return err
 	}
-	client, err := msisdn.New(port.Device)
+	client, err := msisdnclient.New(port.Device)
 	if err != nil {
 		slog.Error("failed to open MSISDN client", "modem", modem.EquipmentIdentifier, "error", err)
 		return err
@@ -39,11 +52,11 @@ func (s *Service) UpdateMSISDN(ctx context.Context, modem *mmodem.Modem, number 
 		slog.Error("failed to update MSISDN", "modem", modem.EquipmentIdentifier, "error", err)
 		return err
 	}
-	if err := modem.Restart(s.cfg.FindModem(modem.EquipmentIdentifier).Compatible); err != nil {
+	if err := modem.Restart(m.cfg.FindModem(modem.EquipmentIdentifier).Compatible); err != nil {
 		slog.Error("failed to restart modem", "modem", modem.EquipmentIdentifier, "error", err)
 		return err
 	}
-	_, err = s.manager.WaitForModem(ctx, modem)
+	_, err = m.manager.WaitForModem(ctx, modem)
 	if err != nil {
 		slog.Error("failed to wait for modem", "modem", modem.EquipmentIdentifier, "error", err)
 	}

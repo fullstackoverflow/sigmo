@@ -13,8 +13,8 @@ import (
 )
 
 type Handler struct {
-	manager *mmodem.Manager
-	service *Service
+	manager  *mmodem.Manager
+	messages *message
 }
 
 const (
@@ -34,8 +34,8 @@ var errModemNotFound = errors.New("modem not found")
 
 func New(manager *mmodem.Manager) *Handler {
 	return &Handler{
-		manager: manager,
-		service: NewService(),
+		manager:  manager,
+		messages: newMessage(),
 	}
 }
 
@@ -44,7 +44,7 @@ func (h *Handler) List(c *echo.Context) error {
 	if err != nil {
 		return h.modemLookupError(c, err, errorCodeListMessagesFailed)
 	}
-	response, err := h.service.ListConversations(modem)
+	response, err := h.messages.ListConversations(modem)
 	if err != nil {
 		return httpapi.Internal(c, errorCodeListMessagesFailed)
 	}
@@ -63,7 +63,7 @@ func (h *Handler) ListByParticipant(c *echo.Context) error {
 		}
 		return httpapi.BadRequest(c, errorCodeInvalidParticipant, err)
 	}
-	response, err := h.service.ListByParticipant(modem, participant)
+	response, err := h.messages.ListByParticipant(modem, participant)
 	if err != nil {
 		if errors.Is(err, errParticipantRequired) {
 			return httpapi.BadRequest(c, errorCodeParticipantRequired, err)
@@ -82,7 +82,7 @@ func (h *Handler) Send(c *echo.Context) error {
 	if err := httpapi.BindAndValidate(c, &req, errorCodeSendMessageInvalidRequest); err != nil {
 		return err
 	}
-	if err := h.service.Send(modem, req.To, req.Text); err != nil {
+	if err := h.messages.Send(modem, req.To, req.Text); err != nil {
 		if errors.Is(err, errRecipientRequired) {
 			return httpapi.BadRequest(c, errorCodeRecipientRequired, err)
 		}
@@ -106,7 +106,7 @@ func (h *Handler) DeleteByParticipant(c *echo.Context) error {
 		}
 		return httpapi.BadRequest(c, errorCodeInvalidParticipant, err)
 	}
-	if err := h.service.DeleteByParticipant(modem, participant); err != nil {
+	if err := h.messages.DeleteByParticipant(modem, participant); err != nil {
 		if errors.Is(err, errParticipantRequired) {
 			return httpapi.BadRequest(c, errorCodeParticipantRequired, err)
 		}

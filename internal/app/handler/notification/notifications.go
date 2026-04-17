@@ -11,16 +11,16 @@ import (
 	mmodem "github.com/damonto/sigmo/internal/pkg/modem"
 )
 
-type Service struct {
+type notification struct {
 	cfg *config.Config
 }
 
-func NewService(cfg *config.Config) *Service {
-	return &Service{cfg: cfg}
+func newNotification(cfg *config.Config) *notification {
+	return &notification{cfg: cfg}
 }
 
-func (s *Service) List(modem *mmodem.Modem) ([]NotificationResponse, error) {
-	client, err := lpa.New(modem, s.cfg)
+func (n *notification) List(modem *mmodem.Modem) ([]NotificationResponse, error) {
+	client, err := lpa.New(modem, n.cfg)
 	if err != nil {
 		slog.Error("failed to create LPA client", "modem", modem.EquipmentIdentifier, "error", err)
 		return nil, err
@@ -47,8 +47,8 @@ func (s *Service) List(modem *mmodem.Modem) ([]NotificationResponse, error) {
 	return response, nil
 }
 
-func (s *Service) Resend(modem *mmodem.Modem, sequence sgp22.SequenceNumber) error {
-	client, err := lpa.New(modem, s.cfg)
+func (n *notification) Resend(modem *mmodem.Modem, sequence sgp22.SequenceNumber) error {
+	client, err := lpa.New(modem, n.cfg)
 	if err != nil {
 		slog.Error("failed to create LPA client", "modem", modem.EquipmentIdentifier, "error", err)
 		return err
@@ -65,8 +65,8 @@ func (s *Service) Resend(modem *mmodem.Modem, sequence sgp22.SequenceNumber) err
 	return nil
 }
 
-func (s *Service) Delete(modem *mmodem.Modem, sequence sgp22.SequenceNumber) error {
-	client, err := lpa.New(modem, s.cfg)
+func (n *notification) Delete(modem *mmodem.Modem, sequence sgp22.SequenceNumber) error {
+	client, err := lpa.New(modem, n.cfg)
 	if err != nil {
 		slog.Error("failed to create LPA client", "modem", modem.EquipmentIdentifier, "error", err)
 		return err

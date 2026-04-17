@@ -10,7 +10,15 @@ import (
 
 var errCompatibleRequired = errors.New("compatible is required")
 
-func (s *Service) UpdateSettings(modemID string, req UpdateModemSettingsRequest) error {
+type settings struct {
+	cfg *config.Config
+}
+
+func newSettings(cfg *config.Config) *settings {
+	return &settings{cfg: cfg}
+}
+
+func (s *settings) Update(modemID string, req UpdateModemSettingsRequest) error {
 	if req.Compatible == nil {
 		return errCompatibleRequired
 	}
@@ -29,7 +37,7 @@ func (s *Service) UpdateSettings(modemID string, req UpdateModemSettingsRequest)
 	return nil
 }
 
-func (s *Service) GetSettings(modemID string) *ModemSettingsResponse {
+func (s *settings) Get(modemID string) *ModemSettingsResponse {
 	modem := s.cfg.FindModem(modemID)
 	return &ModemSettingsResponse{
 		Alias:      modem.Alias,

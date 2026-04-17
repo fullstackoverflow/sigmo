@@ -8,7 +8,7 @@ import (
 	mmodem "github.com/damonto/sigmo/internal/pkg/modem"
 )
 
-type Service struct{}
+type session struct{}
 
 const (
 	actionInitialize = "initialize"
@@ -21,11 +21,11 @@ var (
 	errUnknownSessionStatus = errors.New("unable to determine ussd session state")
 )
 
-func NewService() *Service {
-	return &Service{}
+func newSession() *session {
+	return &session{}
 }
 
-func (s *Service) Execute(ctx context.Context, modem *mmodem.Modem, action string, code string) (*ExecuteResponse, error) {
+func (s *session) Execute(ctx context.Context, modem *mmodem.Modem, action string, code string) (*ExecuteResponse, error) {
 	ussd := modem.ThreeGPP().USSD()
 	switch action {
 	case actionInitialize:
@@ -37,7 +37,7 @@ func (s *Service) Execute(ctx context.Context, modem *mmodem.Modem, action strin
 	}
 }
 
-func (s *Service) executeInitialize(ctx context.Context, modem *mmodem.Modem, ussd *mmodem.USSD, code string) (*ExecuteResponse, error) {
+func (s *session) executeInitialize(ctx context.Context, modem *mmodem.Modem, ussd *mmodem.USSD, code string) (*ExecuteResponse, error) {
 	state, err := ussd.State()
 	if err != nil {
 		slog.Error("failed to read ussd state", "modem", modem.EquipmentIdentifier, "error", err)
@@ -59,7 +59,7 @@ func (s *Service) executeInitialize(ctx context.Context, modem *mmodem.Modem, us
 	return &ExecuteResponse{Reply: reply}, nil
 }
 
-func (s *Service) executeReply(ctx context.Context, modem *mmodem.Modem, ussd *mmodem.USSD, code string) (*ExecuteResponse, error) {
+func (s *session) executeReply(ctx context.Context, modem *mmodem.Modem, ussd *mmodem.USSD, code string) (*ExecuteResponse, error) {
 	state, err := ussd.State()
 	if err != nil {
 		slog.Error("failed to read ussd state", "modem", modem.EquipmentIdentifier, "error", err)

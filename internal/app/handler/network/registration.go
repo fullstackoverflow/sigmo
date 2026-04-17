@@ -10,7 +10,7 @@ import (
 
 var errOperatorCodeRequired = errors.New("operator code is required")
 
-func (s *Service) Register(modem *mmodem.Modem, operatorCode string) error {
+func (n *network) Register(modem *mmodem.Modem, operatorCode string) error {
 	operatorCode = strings.TrimSpace(operatorCode)
 	if operatorCode == "" {
 		return errOperatorCodeRequired

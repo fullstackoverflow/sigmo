@@ -21,9 +21,10 @@ import (
 )
 
 type Handler struct {
-	cfg     *config.Config
-	manager *mmodem.Manager
-	service *Service
+	manager      *mmodem.Manager
+	profile      *profile
+	provisioning *provisioning
+	lifecycle    *lifecycle
 }
 
 const (
@@ -72,9 +73,10 @@ const (
 
 func New(cfg *config.Config, manager *mmodem.Manager) *Handler {
 	return &Handler{
-		cfg:     cfg,
-		manager: manager,
-		service: NewService(cfg, manager),
+		manager:      manager,
+		profile:      newProfile(cfg),
+		provisioning: newProvisioning(cfg),
+		lifecycle:    newLifecycle(cfg, manager),
 	}
 }
 
@@ -83,7 +85,7 @@ func (h *Handler) List(c *echo.Context) error {
 	if err != nil {
 		return h.modemLookupError(c, err, errorCodeListESIMsFailed)
 	}
-	response, err := h.service.List(modem)
+	response, err := h.profile.List(modem)
 	if err != nil {
 		if errors.Is(err, lpa.ErrNoSupportedAID) {
 			return httpapi.NotFound(c, errorCodeEuiccNotSupported, err)
@@ -98,7 +100,7 @@ func (h *Handler) Discover(c *echo.Context) error {
 	if err != nil {
 		return h.modemLookupError(c, err, errorCodeDiscoverESIMsFailed)
 	}
-	response, err := h.service.Discover(modem)
+	response, err := h.provisioning.Discover(modem)
 	if err != nil {
 		if errors.Is(err, lpa.ErrNoSupportedAID) {
 			return httpapi.NotFound(c, errorCodeEuiccNotSupported, err)
@@ -122,7 +124,7 @@ func (h *Handler) Enable(c *echo.Context) error {
 	}
 	ctx, cancel := context.WithTimeout(c.Request().Context(), enableTimeout)
 	defer cancel()
-	if err := h.service.Enable(ctx, modem, iccid); err != nil {
+	if err := h.lifecycle.Enable(ctx, modem, iccid); err != nil {
 		if errors.Is(err, context.DeadlineExceeded) {
 			return httpapi.RequestTimeout(c, errorCodeEnableESIMTimeout, errEnableTimeout)
 		}
@@ -149,7 +151,7 @@ func (h *Handler) Delete(c *echo.Context) error {
 		}
 		return httpapi.BadRequest(c, errorCodeInvalidICCID, err)
 	}
-	if err := h.service.Delete(modem, iccid); err != nil {
+	if err := h.lifecycle.Delete(modem, iccid); err != nil {
 		if errors.Is(err, lpa.ErrNoSupportedAID) {
 			return httpapi.NotFound(c, errorCodeEuiccNotSupported, err)
 		}
@@ -213,7 +215,7 @@ func (h *Handler) Download(c *echo.Context) error {
 		},
 	}
 
-	if err := h.service.Download(downloadCtx, modem, activationCode, opts); err != nil {
+	if err := h.provisioning.Download(downloadCtx, modem, activationCode, opts); err != nil {
 		_ = session.send(downloadServerMessage{Type: wsTypeError, Message: err.Error()})
 		return nil
 	}
@@ -238,7 +240,7 @@ func (h *Handler) UpdateNickname(c *echo.Context) error {
 	if err := httpapi.BindAndValidate(c, &req, errorCodeUpdateESIMNicknameInvalidRequest); err != nil {
 		return err
 	}
-	if err := h.service.UpdateNickname(modem, iccid, req.Nickname); err != nil {
+	if err := h.profile.UpdateNickname(modem, iccid, req.Nickname); err != nil {
 		if errors.Is(err, errInvalidNickname) {
 			return httpapi.BadRequest(c, errorCodeInvalidNickname, err)
 		}

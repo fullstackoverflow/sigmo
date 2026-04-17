@@ -10,17 +10,17 @@ import (
 	mmodem "github.com/damonto/sigmo/internal/pkg/modem"
 )
 
-type Service struct{}
+type message struct{}
 
 var (
 	errParticipantRequired = errors.New("participant is required")
 )
 
-func NewService() *Service {
-	return &Service{}
+func newMessage() *message {
+	return &message{}
 }
 
-func (s *Service) ListConversations(modem *mmodem.Modem) ([]MessageResponse, error) {
+func (m *message) ListConversations(modem *mmodem.Modem) ([]MessageResponse, error) {
 	messages, err := modem.Messaging().List()
 	if err != nil {
 		slog.Error("failed to list messages", "modem", modem.EquipmentIdentifier, "error", err)
@@ -53,7 +53,7 @@ func (s *Service) ListConversations(modem *mmodem.Modem) ([]MessageResponse, err
 	return response, nil
 }
 
-func (s *Service) ListByParticipant(modem *mmodem.Modem, participant string) ([]MessageResponse, error) {
+func (m *message) ListByParticipant(modem *mmodem.Modem, participant string) ([]MessageResponse, error) {
 	if strings.TrimSpace(participant) == "" {
 		return nil, errParticipantRequired
 	}
@@ -82,7 +82,7 @@ func (s *Service) ListByParticipant(modem *mmodem.Modem, participant string) ([]
 	return response, nil
 }
 
-func (s *Service) DeleteByParticipant(modem *mmodem.Modem, participant string) error {
+func (m *message) DeleteByParticipant(modem *mmodem.Modem, participant string) error {
 	if strings.TrimSpace(participant) == "" {
 		return errParticipantRequired
 	}

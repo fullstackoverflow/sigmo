@@ -5,12 +5,21 @@ import (
 
 	sgp22 "github.com/damonto/euicc-go/v2"
 
+	"github.com/damonto/sigmo/internal/pkg/config"
 	"github.com/damonto/sigmo/internal/pkg/lpa"
 	mmodem "github.com/damonto/sigmo/internal/pkg/modem"
 )
 
-func (s *Service) Discover(modem *mmodem.Modem) ([]DiscoverResponse, error) {
-	client, err := lpa.New(modem, s.cfg)
+type provisioning struct {
+	cfg *config.Config
+}
+
+func newProvisioning(cfg *config.Config) *provisioning {
+	return &provisioning{cfg: cfg}
+}
+
+func (p *provisioning) Discover(modem *mmodem.Modem) ([]DiscoverResponse, error) {
+	client, err := lpa.New(modem, p.cfg)
 	if err != nil {
 		slog.Error("failed to create LPA client", "modem", modem.EquipmentIdentifier, "error", err)
 		return nil, err

@@ -6,13 +6,13 @@ import (
 	mmodem "github.com/damonto/sigmo/internal/pkg/modem"
 )
 
-type Service struct{}
+type network struct{}
 
-func NewService() *Service {
-	return &Service{}
+func newNetwork() *network {
+	return &network{}
 }
 
-func (s *Service) List(modem *mmodem.Modem) ([]NetworkResponse, error) {
+func (n *network) List(modem *mmodem.Modem) ([]NetworkResponse, error) {
 	networks, err := modem.ThreeGPP().ScanNetworks()
 	if err != nil {
 		slog.Error("failed to scan networks", "modem", modem.EquipmentIdentifier, "error", err)

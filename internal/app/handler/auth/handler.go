@@ -12,7 +12,7 @@ import (
 )
 
 type Handler struct {
-	service *Service
+	otp *otp
 }
 
 const (
@@ -25,16 +25,16 @@ const (
 
 func New(cfg *config.Config, store *auth.Store) *Handler {
 	return &Handler{
-		service: NewService(cfg, store),
+		otp: newOTP(cfg, store),
 	}
 }
 
 func (h *Handler) OTPRequirement(c *echo.Context) error {
-	return c.JSON(http.StatusOK, OTPRequirementResponse{OTPRequired: h.service.OTPRequired()})
+	return c.JSON(http.StatusOK, OTPRequirementResponse{OTPRequired: h.otp.Required()})
 }
 
 func (h *Handler) SendOTP(c *echo.Context) error {
-	if err := h.service.SendOTP(c.Request().Context()); err != nil {
+	if err := h.otp.Send(c.Request().Context()); err != nil {
 		if errors.Is(err, auth.ErrOTPCooldown) {
 			return httpapi.TooManyRequests(c, errorCodeOTPCooldown, err)
 		}
@@ -48,7 +48,7 @@ func (h *Handler) VerifyOTP(c *echo.Context) error {
 	if err := httpapi.BindAndValidate(c, &req, errorCodeInvalidVerifyOTPRequest); err != nil {
 		return err
 	}
-	token, err := h.service.VerifyOTP(req.Code)
+	token, err := h.otp.Verify(req.Code)
 	if err != nil {
 		if errors.Is(err, errInvalidOTP) {
 			return httpapi.Unauthorized(c, errorCodeInvalidOTP, err)

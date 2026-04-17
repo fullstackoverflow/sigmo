@@ -16,51 +16,51 @@ var (
 	errInvalidOTP           = errors.New("invalid otp")
 )
 
-type Service struct {
+type otp struct {
 	cfg   *config.Config
 	store *auth.Store
 }
 
-func NewService(cfg *config.Config, store *auth.Store) *Service {
-	return &Service{
+func newOTP(cfg *config.Config, store *auth.Store) *otp {
+	return &otp{
 		cfg:   cfg,
 		store: store,
 	}
 }
 
-func (s *Service) OTPRequired() bool {
-	return s.cfg.App.OTPRequired
+func (o *otp) Required() bool {
+	return o.cfg.App.OTPRequired
 }
 
-func (s *Service) SendOTP(ctx context.Context) error {
-	if !s.OTPRequired() {
+func (o *otp) Send(ctx context.Context) error {
+	if !o.Required() {
 		return nil
 	}
-	if len(s.cfg.App.AuthProviders) == 0 {
+	if len(o.cfg.App.AuthProviders) == 0 {
 		return errAuthProviderRequired
 	}
-	code, _, err := s.store.IssueOTP()
+	code, _, err := o.store.IssueOTP()
 	if err != nil {
 		slog.Error("failed to issue OTP", "error", err)
 		return err
 	}
-	notifier, err := notify.New(s.cfg)
+	notifier, err := notify.New(o.cfg)
 	if err != nil {
 		slog.Error("failed to create notifier", "error", err)
 		return err
 	}
-	if err := notifier.Send(ctx, notifyevent.OTPEvent{Code: code}, s.cfg.App.AuthProviders...); err != nil {
+	if err := notifier.Send(ctx, notifyevent.OTPEvent{Code: code}, o.cfg.App.AuthProviders...); err != nil {
 		slog.Error("failed to send OTP notification", "error", err)
 		return err
 	}
 	return nil
 }
 
-func (s *Service) VerifyOTP(code string) (string, error) {
-	if s.OTPRequired() && !s.store.VerifyOTP(code) {
+func (o *otp) Verify(code string) (string, error) {
+	if o.Required() && !o.store.VerifyOTP(code) {
 		return "", errInvalidOTP
 	}
-	token, _, err := s.store.IssueToken()
+	token, _, err := o.store.IssueToken()
 	if err != nil {
 		slog.Error("failed to issue token", "error", err)
 		return "", err

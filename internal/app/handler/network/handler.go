@@ -12,8 +12,8 @@ import (
 )
 
 type Handler struct {
-	manager *mmodem.Manager
-	service *Service
+	manager  *mmodem.Manager
+	networks *network
 }
 
 const (
@@ -27,8 +27,8 @@ var errModemNotFound = errors.New("modem not found")
 
 func New(manager *mmodem.Manager) *Handler {
 	return &Handler{
-		manager: manager,
-		service: NewService(),
+		manager:  manager,
+		networks: newNetwork(),
 	}
 }
 
@@ -37,7 +37,7 @@ func (h *Handler) List(c *echo.Context) error {
 	if err != nil {
 		return h.modemLookupError(c, err, errorCodeListNetworksFailed)
 	}
-	response, err := h.service.List(modem)
+	response, err := h.networks.List(modem)
 	if err != nil {
 		return httpapi.Internal(c, errorCodeListNetworksFailed)
 	}
@@ -50,7 +50,7 @@ func (h *Handler) Register(c *echo.Context) error {
 		return h.modemLookupError(c, err, errorCodeRegisterNetworkFailed)
 	}
 	operatorCode := c.Param("operatorCode")
-	if err := h.service.Register(modem, operatorCode); err != nil {
+	if err := h.networks.Register(modem, operatorCode); err != nil {
 		if errors.Is(err, errOperatorCodeRequired) {
 			return httpapi.BadRequest(c, errorCodeOperatorCodeRequired, err)
 		}

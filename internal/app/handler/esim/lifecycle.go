@@ -7,12 +7,25 @@ import (
 
 	sgp22 "github.com/damonto/euicc-go/v2"
 
+	"github.com/damonto/sigmo/internal/pkg/config"
 	"github.com/damonto/sigmo/internal/pkg/lpa"
 	mmodem "github.com/damonto/sigmo/internal/pkg/modem"
 )
 
-func (s *Service) Enable(ctx context.Context, modem *mmodem.Modem, iccid sgp22.ICCID) error {
-	client, err := lpa.New(modem, s.cfg)
+type lifecycle struct {
+	cfg     *config.Config
+	manager *mmodem.Manager
+}
+
+func newLifecycle(cfg *config.Config, manager *mmodem.Manager) *lifecycle {
+	return &lifecycle{
+		cfg:     cfg,
+		manager: manager,
+	}
+}
+
+func (l *lifecycle) Enable(ctx context.Context, modem *mmodem.Modem, iccid sgp22.ICCID) error {
+	client, err := lpa.New(modem, l.cfg)
 	if err != nil {
 		slog.Error("failed to create LPA client", "modem", modem.EquipmentIdentifier, "error", err)
 		return err
@@ -45,24 +58,24 @@ func (s *Service) Enable(ctx context.Context, modem *mmodem.Modem, iccid sgp22.I
 
 	closeClient()
 
-	if err := modem.Restart(s.cfg.FindModem(modem.EquipmentIdentifier).Compatible); err != nil {
+	if err := modem.Restart(l.cfg.FindModem(modem.EquipmentIdentifier).Compatible); err != nil {
 		slog.Error("failed to restart modem", "modem", modem.EquipmentIdentifier, "error", err)
 		return err
 	}
 
-	target, err := s.manager.WaitForModem(ctx, modem)
+	target, err := l.manager.WaitForModem(ctx, modem)
 	if err != nil {
 		slog.Error("failed to wait for modem", "modem", modem.EquipmentIdentifier, "error", err)
 		return err
 	}
-	if err := s.sendPendingNotifications(target, lastSeq); err != nil {
+	if err := l.sendPendingNotifications(target, lastSeq); err != nil {
 		slog.Warn("failed to handle modem notifications", "error", err, "modem", modem.EquipmentIdentifier)
 	}
 	return nil
 }
 
-func (s *Service) Delete(modem *mmodem.Modem, iccid sgp22.ICCID) error {
-	client, err := lpa.New(modem, s.cfg)
+func (l *lifecycle) Delete(modem *mmodem.Modem, iccid sgp22.ICCID) error {
+	client, err := lpa.New(modem, l.cfg)
 	if err != nil {
 		slog.Error("failed to create LPA client", "modem", modem.EquipmentIdentifier, "error", err)
 		return err
@@ -80,8 +93,8 @@ func (s *Service) Delete(modem *mmodem.Modem, iccid sgp22.ICCID) error {
 	return nil
 }
 
-func (s *Service) sendPendingNotifications(modem *mmodem.Modem, lastSeq sgp22.SequenceNumber) error {
-	client, err := lpa.New(modem, s.cfg)
+func (l *lifecycle) sendPendingNotifications(modem *mmodem.Modem, lastSeq sgp22.SequenceNumber) error {
+	client, err := lpa.New(modem, l.cfg)
 	if err != nil {
 		slog.Error("failed to create LPA client", "modem", modem.EquipmentIdentifier, "error", err)
 		return err
