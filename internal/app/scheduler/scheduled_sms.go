@@ -2,6 +2,7 @@ package scheduler
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"strings"
 	"time"
@@ -27,7 +28,12 @@ func NewScheduledSMS(cfg *config.Config, manager *modem.Manager) *ScheduledSMS {
 }
 
 func (s *ScheduledSMS) Enabled() bool {
-	return len(s.cfg.ScheduledSMSJobs()) > 0
+	jobs, err := s.enabledJobs()
+	if err != nil {
+		slog.Error("scheduled SMS configuration is invalid", "error", err)
+		return false
+	}
+	return len(jobs) > 0
 }
 
 func (s *ScheduledSMS) Run(ctx context.Context) error {
@@ -51,7 +57,11 @@ func (s *ScheduledSMS) Run(ctx context.Context) error {
 
 func (s *ScheduledSMS) runOnce(ctx context.Context) {
 	_ = ctx
-	jobs := s.cfg.ScheduledSMSJobs()
+	jobs, err := s.enabledJobs()
+	if err != nil {
+		slog.Error("skipping scheduled SMS run due to invalid configuration", "error", err)
+		return
+	}
 	if len(jobs) == 0 {
 		return
 	}
@@ -68,13 +78,6 @@ func (s *ScheduledSMS) runOnce(ctx context.Context) {
 
 	now := time.Now().UTC()
 	for _, job := range jobs {
-		if !job.Enabled {
-			continue
-		}
-		if err := validateJob(job); err != nil {
-			slog.Warn("skipping invalid scheduled SMS job", "job", job.Name, "error", err)
-			continue
-		}
 		if !job.NextSendAt.IsZero() && job.NextSendAt.After(now) {
 			continue
 		}
@@ -96,6 +99,28 @@ func (s *ScheduledSMS) runOnce(ctx context.Context) {
 		}
 		slog.Info("scheduled SMS sent", "job", job.Name, "modem", job.ModemID, "to", job.To, "next_send_at", nextSendAt)
 	}
+}
+
+func (s *ScheduledSMS) enabledJobs() ([]config.ScheduledSMS, error) {
+	all := s.cfg.ScheduledSMSJobs()
+	enabled := make([]config.ScheduledSMS, 0, len(all))
+	names := make(map[string]struct{}, len(all))
+
+	for _, job := range all {
+		if !job.Enabled {
+			continue
+		}
+		if err := validateJob(job); err != nil {
+			return nil, fmt.Errorf("invalid scheduled SMS job %q: %w", strings.TrimSpace(job.Name), err)
+		}
+		name := strings.TrimSpace(job.Name)
+		if _, exists := names[name]; exists {
+			return nil, fmt.Errorf("duplicate scheduled SMS job name: %s", name)
+		}
+		names[name] = struct{}{}
+		enabled = append(enabled, job)
+	}
+	return enabled, nil
 }
 
 func validateJob(job config.ScheduledSMS) error {

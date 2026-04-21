@@ -1,4 +1,4 @@
-FROM gcr.io/distroless/static-debian12:nonroot
+FROM alpine:3.21
 WORKDIR /app
 COPY sigmo /usr/local/bin/sigmo
 

@@ -6,7 +6,6 @@ import (
 	"slices"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/damonto/sigmo/internal/pkg/carrier"
 	"github.com/damonto/sigmo/internal/pkg/config"
@@ -18,19 +17,14 @@ type catalog struct {
 	cfg     *config.Config
 	manager *mmodem.Manager
 	mu      sync.RWMutex
-	esim    map[string]esimSupportEntry
-}
-
-type esimSupportEntry struct {
-	supported bool
-	expiresAt time.Time
+	esim    map[string]bool
 }
 
 func newCatalog(cfg *config.Config, manager *mmodem.Manager) *catalog {
 	return &catalog{
 		cfg:     cfg,
 		manager: manager,
-		esim:    make(map[string]esimSupportEntry),
+		esim:    make(map[string]bool),
 	}
 }
 
@@ -193,39 +187,34 @@ func (c *catalog) buildSlotsResponse(device *mmodem.Modem) ([]SlotResponse, erro
 	return simSlots, nil
 }
 
-const esimSupportCacheTTL = 10 * time.Minute
-
 func (c *catalog) supportsEsim(m *mmodem.Modem, sim *mmodem.SIM) (bool, error) {
 	if sim != nil && strings.TrimSpace(sim.Eid) != "" {
 		return true, nil
 	}
-	if supported, ok := c.cachedEsimSupport(m.EquipmentIdentifier, time.Now()); ok {
+	if supported, ok := c.cachedEsimSupport(m.EquipmentIdentifier); ok {
 		return supported, nil
 	}
 	supported, err := probeEsimSupport(m, c.cfg)
 	if err != nil {
 		return false, err
 	}
-	c.storeEsimSupport(m.EquipmentIdentifier, supported, time.Now().Add(esimSupportCacheTTL))
+	c.storeEsimSupport(m.EquipmentIdentifier, supported)
 	return supported, nil
 }
 
-func (c *catalog) cachedEsimSupport(id string, now time.Time) (bool, bool) {
+func (c *catalog) cachedEsimSupport(id string) (bool, bool) {
 	c.mu.RLock()
-	entry, ok := c.esim[id]
+	supported, ok := c.esim[id]
 	c.mu.RUnlock()
-	if !ok || now.After(entry.expiresAt) {
+	if !ok {
 		return false, false
 	}
-	return entry.supported, true
+	return supported, true
 }
 
-func (c *catalog) storeEsimSupport(id string, supported bool, expiresAt time.Time) {
+func (c *catalog) storeEsimSupport(id string, supported bool) {
 	c.mu.Lock()
-	c.esim[id] = esimSupportEntry{
-		supported: supported,
-		expiresAt: expiresAt,
-	}
+	c.esim[id] = supported
 	c.mu.Unlock()
 }
 
