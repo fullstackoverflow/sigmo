@@ -145,6 +145,20 @@ func (c *Config) MarkScheduledSMSSent(name string, lastSentAt, nextSendAt time.T
 	return fmt.Errorf("scheduled sms job not found: %s", name)
 }
 
+func (c *Config) SetScheduledSMSNextSendAt(name string, nextSendAt time.Time) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	for i := range c.ScheduledSMS {
+		if c.ScheduledSMS[i].Name != name {
+			continue
+		}
+		c.ScheduledSMS[i].NextSendAt = nextSendAt
+		return c.saveLocked()
+	}
+	return fmt.Errorf("scheduled sms job not found: %s", name)
+}
+
 func (c *Config) saveLocked() error {
 	if c.Path == "" {
 		return errors.New("config path is required")

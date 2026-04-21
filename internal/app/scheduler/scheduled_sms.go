@@ -78,6 +78,15 @@ func (s *ScheduledSMS) runOnce(ctx context.Context) {
 
 	now := time.Now().UTC()
 	for _, job := range jobs {
+		if job.NextSendAt.IsZero() {
+			nextSendAt := calculateNextSendAt(now, job)
+			if err := s.cfg.SetScheduledSMSNextSendAt(job.Name, nextSendAt); err != nil {
+				slog.Error("failed to initialize scheduled SMS next send time", "job", job.Name, "error", err)
+				continue
+			}
+			slog.Info("initialized scheduled SMS next_send_at", "job", job.Name, "next_send_at", nextSendAt)
+			continue
+		}
 		if !job.NextSendAt.IsZero() && job.NextSendAt.After(now) {
 			continue
 		}
@@ -92,8 +101,7 @@ func (s *ScheduledSMS) runOnce(ctx context.Context) {
 			continue
 		}
 
-		nextSendAt := now.AddDate(0, job.IntervalMonths, job.IntervalDays).
-			Add(time.Duration(job.IntervalMinutes) * time.Minute)
+		nextSendAt := calculateNextSendAt(now, job)
 		if err := s.cfg.MarkScheduledSMSSent(job.Name, now, nextSendAt); err != nil {
 			slog.Error("failed to persist scheduled SMS state", "job", job.Name, "error", err)
 			continue
@@ -122,6 +130,11 @@ func (s *ScheduledSMS) enabledJobs() ([]config.ScheduledSMS, error) {
 		enabled = append(enabled, job)
 	}
 	return enabled, nil
+}
+
+func calculateNextSendAt(base time.Time, job config.ScheduledSMS) time.Time {
+	return base.AddDate(0, job.IntervalMonths, job.IntervalDays).
+		Add(time.Duration(job.IntervalMinutes) * time.Minute)
 }
 
 func validateJob(job config.ScheduledSMS) error {

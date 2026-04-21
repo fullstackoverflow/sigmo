@@ -42,7 +42,7 @@
   name = "quarterly-balance-check"
   enabled = false
   modem_id = "860710083679723"
-  to = "10086"
-  text = "CXLL"
-  interval_minutes = 5
+  to = "+447973000186"
+  text = "A"
+  interval_months = 5
   next_send_at = 2026-06-01T00:00:00Z
