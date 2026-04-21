@@ -5,6 +5,8 @@ import (
 	"log/slog"
 	"slices"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/damonto/sigmo/internal/pkg/carrier"
 	"github.com/damonto/sigmo/internal/pkg/config"
@@ -15,12 +17,20 @@ import (
 type catalog struct {
 	cfg     *config.Config
 	manager *mmodem.Manager
+	mu      sync.RWMutex
+	esim    map[string]esimSupportEntry
+}
+
+type esimSupportEntry struct {
+	supported bool
+	expiresAt time.Time
 }
 
 func newCatalog(cfg *config.Config, manager *mmodem.Manager) *catalog {
 	return &catalog{
 		cfg:     cfg,
 		manager: manager,
+		esim:    make(map[string]esimSupportEntry),
 	}
 }
 
@@ -30,14 +40,32 @@ func (c *catalog) List() ([]*ModemResponse, error) {
 		slog.Error("failed to list modems", "error", err)
 		return nil, err
 	}
-	response := make([]*ModemResponse, 0, len(modems))
-	for _, device := range modems {
-		modemResp, err := c.buildResponse(device)
-		if err != nil {
-			return nil, err
-		}
-		response = append(response, modemResp)
+	type result struct {
+		resp *ModemResponse
+		err  error
 	}
+	response := make([]*ModemResponse, 0, len(modems))
+	results := make(chan result, len(modems))
+	var wg sync.WaitGroup
+	for _, device := range modems {
+		device := device
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			modemResp, err := c.buildResponse(device)
+			results <- result{resp: modemResp, err: err}
+		}()
+	}
+	wg.Wait()
+	close(results)
+
+	for item := range results {
+		if item.err != nil {
+			return nil, item.err
+		}
+		response = append(response, item.resp)
+	}
+
 	slices.SortFunc(response, func(a, b *ModemResponse) int {
 		return strings.Compare(a.ID, b.ID)
 	})
@@ -91,7 +119,7 @@ func (c *catalog) buildResponse(device *mmodem.Modem) (*ModemResponse, error) {
 	}
 
 	carrierInfo := carrier.Lookup(sim.OperatorIdentifier)
-	supportsEsim, err := supportsEsim(device, c.cfg)
+	supportsEsim, err := c.supportsEsim(device, sim)
 	if err != nil {
 		slog.Error("failed to detect eSIM support", "modem", device.EquipmentIdentifier, "error", err)
 		return nil, err
@@ -165,7 +193,43 @@ func (c *catalog) buildSlotsResponse(device *mmodem.Modem) ([]SlotResponse, erro
 	return simSlots, nil
 }
 
-func supportsEsim(m *mmodem.Modem, cfg *config.Config) (bool, error) {
+const esimSupportCacheTTL = 10 * time.Minute
+
+func (c *catalog) supportsEsim(m *mmodem.Modem, sim *mmodem.SIM) (bool, error) {
+	if sim != nil && strings.TrimSpace(sim.Eid) != "" {
+		return true, nil
+	}
+	if supported, ok := c.cachedEsimSupport(m.EquipmentIdentifier, time.Now()); ok {
+		return supported, nil
+	}
+	supported, err := probeEsimSupport(m, c.cfg)
+	if err != nil {
+		return false, err
+	}
+	c.storeEsimSupport(m.EquipmentIdentifier, supported, time.Now().Add(esimSupportCacheTTL))
+	return supported, nil
+}
+
+func (c *catalog) cachedEsimSupport(id string, now time.Time) (bool, bool) {
+	c.mu.RLock()
+	entry, ok := c.esim[id]
+	c.mu.RUnlock()
+	if !ok || now.After(entry.expiresAt) {
+		return false, false
+	}
+	return entry.supported, true
+}
+
+func (c *catalog) storeEsimSupport(id string, supported bool, expiresAt time.Time) {
+	c.mu.Lock()
+	c.esim[id] = esimSupportEntry{
+		supported: supported,
+		expiresAt: expiresAt,
+	}
+	c.mu.Unlock()
+}
+
+func probeEsimSupport(m *mmodem.Modem, cfg *config.Config) (bool, error) {
 	client, err := lpa.New(m, cfg)
 	if err != nil {
 		if errors.Is(err, lpa.ErrNoSupportedAID) {

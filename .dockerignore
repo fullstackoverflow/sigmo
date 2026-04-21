@@ -1,0 +1,13 @@
+.git
+.github
+.vscode
+.codex
+
+node_modules
+web/node_modules
+web/dist
+
+build
+data
+*.log
+*.tmp

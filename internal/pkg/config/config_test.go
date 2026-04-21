@@ -28,7 +28,7 @@ listen_address = "127.0.0.1:9527"
 
 [channels.telegram]
 bot_token = "token"
-recipients = [123456]
+recipients = ["123456"]
 `,
 			wantOTPDefault: false,
 		},

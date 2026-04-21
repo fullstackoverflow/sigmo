@@ -16,6 +16,7 @@ import (
 
 	"github.com/damonto/sigmo/internal/app/forwarder"
 	"github.com/damonto/sigmo/internal/app/router"
+	"github.com/damonto/sigmo/internal/app/scheduler"
 	"github.com/damonto/sigmo/internal/pkg/config"
 	"github.com/damonto/sigmo/internal/pkg/modem"
 	"github.com/damonto/sigmo/internal/pkg/validator"
@@ -68,6 +69,7 @@ func main() {
 		slog.Error("unable to configure message relay", "error", err)
 		os.Exit(1)
 	}
+	scheduledSMS := scheduler.NewScheduledSMS(cfg, manager)
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
@@ -76,6 +78,14 @@ func main() {
 		go func() {
 			if err := relay.Run(ctx); err != nil {
 				slog.Error("message relay stopped", "error", err)
+				stop()
+			}
+		}()
+	}
+	if scheduledSMS.Enabled() {
+		go func() {
+			if err := scheduledSMS.Run(ctx); err != nil {
+				slog.Error("scheduled SMS stopped", "error", err)
 				stop()
 			}
 		}()

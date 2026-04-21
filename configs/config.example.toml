@@ -37,3 +37,12 @@
     recipients = ["ops@example.com"]
     tls_policy = "mandatory"
     ssl = false
+
+[[scheduled_sms]]
+  name = "quarterly-balance-check"
+  enabled = false
+  modem_id = "860710083679723"
+  to = "10086"
+  text = "CXLL"
+  interval_months = 3
+  next_send_at = 2026-06-01T00:00:00Z

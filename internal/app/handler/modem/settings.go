@@ -26,11 +26,7 @@ func (s *settings) Update(modemID string, req UpdateModemSettingsRequest) error 
 	modem.Alias = strings.TrimSpace(req.Alias)
 	modem.Compatible = *req.Compatible
 	modem.MSS = req.MSS
-	if s.cfg.Modems == nil {
-		s.cfg.Modems = make(map[string]config.Modem)
-	}
-	s.cfg.Modems[modemID] = modem
-	if err := s.cfg.Save(); err != nil {
+	if err := s.cfg.UpdateModem(modemID, modem); err != nil {
 		slog.Error("failed to save config", "modem", modemID, "error", err)
 		return err
 	}

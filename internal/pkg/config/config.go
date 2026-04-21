@@ -5,16 +5,21 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"sync"
+	"time"
 
 	"github.com/pelletier/go-toml/v2"
 )
 
 // Config represents the application configuration
 type Config struct {
-	App      App                `toml:"app"`
-	Channels map[string]Channel `toml:"channels"`
-	Modems   map[string]Modem   `toml:"modems"`
-	Path     string             `toml:"-"`
+	App          App                `toml:"app"`
+	Channels     map[string]Channel `toml:"channels"`
+	Modems       map[string]Modem   `toml:"modems"`
+	ScheduledSMS []ScheduledSMS     `toml:"scheduled_sms"`
+	Path         string             `toml:"-"`
+
+	mu sync.RWMutex `toml:"-"`
 }
 
 type App struct {
@@ -53,6 +58,18 @@ type Modem struct {
 	MSS        int    `toml:"mss"`
 }
 
+type ScheduledSMS struct {
+	Name           string    `toml:"name"`
+	Enabled        bool      `toml:"enabled"`
+	ModemID        string    `toml:"modem_id"`
+	To             string    `toml:"to"`
+	Text           string    `toml:"text"`
+	IntervalMonths int       `toml:"interval_months,omitempty"`
+	IntervalDays   int       `toml:"interval_days,omitempty"`
+	NextSendAt     time.Time `toml:"next_send_at,omitempty"`
+	LastSentAt     time.Time `toml:"last_sent_at,omitempty"`
+}
+
 // Load reads and parses the configuration from the given file path
 func Load(path string) (*Config, error) {
 	file, err := os.Open(path)
@@ -74,6 +91,9 @@ func (c *Config) IsProduction() bool {
 }
 
 func (c *Config) FindModem(id string) Modem {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
 	if modem, ok := c.Modems[id]; ok {
 		return modem
 	}
@@ -84,6 +104,47 @@ func (c *Config) FindModem(id string) Modem {
 }
 
 func (c *Config) Save() error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.saveLocked()
+}
+
+func (c *Config) ScheduledSMSJobs() []ScheduledSMS {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	jobs := make([]ScheduledSMS, len(c.ScheduledSMS))
+	copy(jobs, c.ScheduledSMS)
+	return jobs
+}
+
+func (c *Config) UpdateModem(id string, modem Modem) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if c.Modems == nil {
+		c.Modems = make(map[string]Modem)
+	}
+	c.Modems[id] = modem
+	return c.saveLocked()
+}
+
+func (c *Config) MarkScheduledSMSSent(name string, lastSentAt, nextSendAt time.Time) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	for i := range c.ScheduledSMS {
+		if c.ScheduledSMS[i].Name != name {
+			continue
+		}
+		c.ScheduledSMS[i].LastSentAt = lastSentAt
+		c.ScheduledSMS[i].NextSendAt = nextSendAt
+		return c.saveLocked()
+	}
+	return fmt.Errorf("scheduled sms job not found: %s", name)
+}
+
+func (c *Config) saveLocked() error {
 	if c.Path == "" {
 		return errors.New("config path is required")
 	}

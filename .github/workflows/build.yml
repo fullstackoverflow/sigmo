@@ -82,3 +82,94 @@ jobs:
         uses: softprops/action-gh-release@v3
         with:
           files: "*"
+
+  docker:
+    name: Publish Docker Image
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name != 'pull_request'
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Download linux-amd64 binary
+        uses: actions/download-artifact@v8
+        with:
+          name: sigmo-linux-amd64
+          path: artifacts/amd64
+
+      - name: Download linux-arm64 binary
+        uses: actions/download-artifact@v8
+        with:
+          name: sigmo-linux-arm64
+          path: artifacts/arm64
+
+      - name: Download linux-armhf binary
+        uses: actions/download-artifact@v8
+        with:
+          name: sigmo-linux-armhf
+          path: artifacts/armv7
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push per-arch images from release binaries
+        env:
+          IMAGE: ghcr.io/${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          SHORT_SHA="${GITHUB_SHA::7}"
+          SHA_TAG="sha-${SHORT_SHA}"
+
+          mkdir -p dockerctx/amd64 dockerctx/arm64 dockerctx/armv7
+          cp artifacts/amd64/sigmo-linux-amd64 dockerctx/amd64/sigmo
+          cp artifacts/arm64/sigmo-linux-arm64 dockerctx/arm64/sigmo
+          cp artifacts/armv7/sigmo-linux-armhf dockerctx/armv7/sigmo
+          chmod +x dockerctx/amd64/sigmo dockerctx/arm64/sigmo dockerctx/armv7/sigmo
+
+          docker buildx build --platform linux/amd64 -f Dockerfile -t "${IMAGE}:${SHA_TAG}-amd64" --push dockerctx/amd64
+          docker buildx build --platform linux/arm64 -f Dockerfile -t "${IMAGE}:${SHA_TAG}-arm64" --push dockerctx/arm64
+          docker buildx build --platform linux/arm/v7 -f Dockerfile -t "${IMAGE}:${SHA_TAG}-armv7" --push dockerctx/armv7
+
+      - name: Create and push multi-arch manifests
+        env:
+          IMAGE: ghcr.io/${{ github.repository }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          set -euo pipefail
+
+          SHORT_SHA="${GITHUB_SHA::7}"
+          SHA_TAG="sha-${SHORT_SHA}"
+
+          SOURCES=(
+            "${IMAGE}:${SHA_TAG}-amd64"
+            "${IMAGE}:${SHA_TAG}-arm64"
+            "${IMAGE}:${SHA_TAG}-armv7"
+          )
+
+          docker buildx imagetools create -t "${IMAGE}:${SHA_TAG}" "${SOURCES[@]}"
+
+          if [[ "${GITHUB_REF_TYPE}" == "branch" && "${GITHUB_REF_NAME}" == "${DEFAULT_BRANCH}" ]]; then
+            docker buildx imagetools create -t "${IMAGE}:latest" "${SOURCES[@]}"
+            docker buildx imagetools create -t "${IMAGE}:${GITHUB_REF_NAME}" "${SOURCES[@]}"
+          fi
+
+          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            docker buildx imagetools create -t "${IMAGE}:${GITHUB_REF_NAME}" "${SOURCES[@]}"
+          fi
