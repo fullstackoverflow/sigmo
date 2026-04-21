@@ -92,7 +92,8 @@ func (s *ScheduledSMS) runOnce(ctx context.Context) {
 			continue
 		}
 
-		nextSendAt := now.AddDate(0, job.IntervalMonths, job.IntervalDays)
+		nextSendAt := now.AddDate(0, job.IntervalMonths, job.IntervalDays).
+			Add(time.Duration(job.IntervalMinutes) * time.Minute)
 		if err := s.cfg.MarkScheduledSMSSent(job.Name, now, nextSendAt); err != nil {
 			slog.Error("failed to persist scheduled SMS state", "job", job.Name, "error", err)
 			continue
@@ -136,8 +137,8 @@ func validateJob(job config.ScheduledSMS) error {
 	if strings.TrimSpace(job.Text) == "" {
 		return errInvalidJob("text is required")
 	}
-	if job.IntervalMonths <= 0 && job.IntervalDays <= 0 {
-		return errInvalidJob("interval_months or interval_days must be greater than 0")
+	if job.IntervalMonths <= 0 && job.IntervalDays <= 0 && job.IntervalMinutes <= 0 {
+		return errInvalidJob("interval_months, interval_days, or interval_minutes must be greater than 0")
 	}
 	return nil
 }

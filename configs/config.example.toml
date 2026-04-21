@@ -44,5 +44,5 @@
   modem_id = "860710083679723"
   to = "10086"
   text = "CXLL"
-  interval_months = 3
+  interval_minutes = 5
   next_send_at = 2026-06-01T00:00:00Z

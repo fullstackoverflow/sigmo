@@ -59,15 +59,16 @@ type Modem struct {
 }
 
 type ScheduledSMS struct {
-	Name           string    `toml:"name"`
-	Enabled        bool      `toml:"enabled"`
-	ModemID        string    `toml:"modem_id"`
-	To             string    `toml:"to"`
-	Text           string    `toml:"text"`
-	IntervalMonths int       `toml:"interval_months,omitempty"`
-	IntervalDays   int       `toml:"interval_days,omitempty"`
-	NextSendAt     time.Time `toml:"next_send_at,omitempty"`
-	LastSentAt     time.Time `toml:"last_sent_at,omitempty"`
+	Name            string    `toml:"name"`
+	Enabled         bool      `toml:"enabled"`
+	ModemID         string    `toml:"modem_id"`
+	To              string    `toml:"to"`
+	Text            string    `toml:"text"`
+	IntervalMonths  int       `toml:"interval_months,omitempty"`
+	IntervalDays    int       `toml:"interval_days,omitempty"`
+	IntervalMinutes int       `toml:"interval_minutes,omitempty"`
+	NextSendAt      time.Time `toml:"next_send_at,omitempty"`
+	LastSentAt      time.Time `toml:"last_sent_at,omitempty"`
 }
 
 // Load reads and parses the configuration from the given file path
